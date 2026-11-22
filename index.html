@@ -8,7 +8,10 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script type="importmap">
-    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js" } }
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+    } }
   </script>
 </head>
 <body>
@@ -25,6 +28,10 @@
   <div id="roomBanner" class="room-banner" aria-hidden="true"></div>
   <div id="hint" class="hint"></div>
   <div id="loading" class="loading" hidden>Loading photos…</div>
+  <div id="stairs" class="stairs" hidden>
+    <button id="stairUp" type="button" hidden></button>
+    <button id="stairDown" type="button" hidden></button>
+  </div>
   <div id="joystick" class="joystick" hidden aria-label="Walk: up and down to walk, left and right to turn"><div class="knob"></div></div>
   <div id="error" class="error" role="alert" hidden></div>
 

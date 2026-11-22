@@ -1,8 +1,9 @@
 // What's on show: the exhibition title, its rooms and the photos in each room.
 // It comes from exhibition.json, or from photos picked on this device ("Your photos").
-import { WALL_COLORS } from './building.js';
+import { WALL_COLORS, ROOMS_PER_FLOOR } from './constants.js';
 
-export const MAX_PER_ROOM = 12;   // what fits on a room's walls
+export const MAX_PER_ROOM = 8;    // what fits on a room's walls
+const MAX_FLOORS = 8;
 const PER_ROOM_FROM_FILES = 8;    // photos per room when they aren't sorted into folders
 
 const text = value => (typeof value === 'string' ? value.trim() : '');
@@ -24,9 +25,18 @@ export function normalizeExhibition(data) {
       rooms.push({ name: k ? `${name} (${k + 1})` : name, color: color(room?.color), photos: photos.slice(k * MAX_PER_ROOM, (k + 1) * MAX_PER_ROOM) });
     }
   }
-  if (!rooms.length) rooms.push({ name: 'Room 1', color: null, photos: [] });
+  return finish(text(data?.title) || 'My Exhibition', text(data?.subtitle), rooms, Number.parseInt(data?.floors, 10));
+}
+
+// Every floor has 8 rooms. "floors" asks for a number of floors; there are always enough for
+// all the photos, and rooms without photos are left empty (named, ready to be filled).
+function finish(title, subtitle, rooms, floorsWanted) {
+  const needed = Math.ceil(rooms.length / ROOMS_PER_FLOOR) || 1;
+  const floors = Math.min(MAX_FLOORS, Math.max(Number.isFinite(floorsWanted) && floorsWanted > 0 ? floorsWanted : 1, needed));
+  rooms = rooms.slice(0, floors * ROOMS_PER_FLOOR);
+  while (rooms.length < floors * ROOMS_PER_FLOOR) rooms.push({ name: `Room ${rooms.length + 1}`, color: null, photos: [] });
   rooms.forEach((room, i) => { room.color ||= WALL_COLORS[i % WALL_COLORS.length]; });
-  return { title: text(data?.title) || 'My Exhibition', subtitle: text(data?.subtitle), rooms };
+  return { title, subtitle, floors, rooms };
 }
 
 export async function loadExhibition(url) {
@@ -40,6 +50,7 @@ const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true
 
 // Photos picked on this device. Picking a folder makes each subfolder a room;
 // otherwise the photos go 8 to a room in the order they were taken (or saved).
+// Floors are added as needed: 8 rooms each.
 export function exhibitionFromFiles(fileList) {
   const files = [...fileList].filter(file => file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|avif|heic)$/i.test(file.name));
   if (!files.length) return null;
@@ -71,10 +82,5 @@ export function exhibitionFromFiles(fileList) {
     name: k ? `${room.name} (${k + 1})` : room.name,
     photos: room.photos.slice(k * MAX_PER_ROOM, (k + 1) * MAX_PER_ROOM),
   })));
-  split.forEach((room, i) => { room.color = WALL_COLORS[i % WALL_COLORS.length]; });
-  return {
-    title: rootFolder ? niceName(rootFolder) : 'My Photos',
-    subtitle: `${files.length} photo${files.length === 1 ? '' : 's'}`,
-    rooms: split,
-  };
+  return finish(rootFolder ? niceName(rootFolder) : 'My Photos', `${files.length} photo${files.length === 1 ? '' : 's'}`, split.map(room => ({ ...room, color: null })));
 }

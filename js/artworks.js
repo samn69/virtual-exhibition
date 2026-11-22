@@ -2,7 +2,8 @@
 // Photos are loaded only for the room you're in and the rooms next to it, and shrunk to a
 // sensible size first, so 80+ photos don't run a phone out of memory.
 import * as THREE from 'three';
-import { canvasTexture, seeded } from './building.js';
+import { canvasTexture, seeded } from './textures.js';
+import { PHOTO_Y } from './constants.js';
 
 const SERIF = 'Georgia, "Times New Roman", serif';
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -109,7 +110,7 @@ export class Artworks {
     museum.rooms.forEach((room, r) => {
       exhibition.rooms[r].photos.forEach((photo, index) => {
         const slot = room.slots[index];
-        if (slot) this.items.push({ photo, slot, room: r, index, number: index + 1, parent: room.group, state: 'idle', group: null, mesh: null, texture: null, canvas: null });
+        if (slot) this.items.push({ photo, slot, room: r, floor: room.floor, index, number: index + 1, parent: room.group, state: 'idle', group: null, mesh: null, texture: null, canvas: null });
       });
     });
   }
@@ -117,14 +118,17 @@ export class Artworks {
   get meshes() { return this.items.filter(item => item.group && item.parent.visible).flatMap(item => item.hits); }
   inRoom(room) { return this.items.filter(item => item.room === room); }
 
-  // load the photos of this room and its neighbours; free the ones far away
-  focus(room) {
+  // load the photos of rooms within `radius` doorways of the visitor; free the ones far away
+  focus(distances, radius) {
+    const distance = item => distances.get(`r${item.room}`) ?? Infinity;
     for (const item of this.items) {
-      const distance = Math.abs(item.room - room);
-      if (distance <= 1 && item.state === 'idle') { item.state = 'queued'; this.queue.push(item); }
-      else if (distance >= 3 && item.state === 'loaded') this.unload(item);
+      const d = distance(item);
+      if (d <= radius && item.state === 'idle') { item.state = 'queued'; this.queue.push(item); }
+      else if (d > radius + 1 && item.state === 'queued') item.state = 'idle';
+      else if (d > radius + 1 && item.state === 'loaded') this.unload(item);
     }
-    this.queue.sort((a, b) => Math.abs(a.room - room) - Math.abs(b.room - room) || a.index - b.index);
+    this.queue = this.queue.filter(item => item.state === 'queued');
+    this.queue.sort((a, b) => distance(a) - distance(b) || a.room - b.room || a.index - b.index);
     this.pump();
   }
 
@@ -200,7 +204,7 @@ export class Artworks {
 
     // plaque beside the frame, at reading height
     const plaque = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.25), new THREE.MeshLambertMaterial({ map: plaqueTexture(item.number, item.photo) }));
-    plaque.position.set(slot.plaqueSide * (w / 2 + matte + border + 0.34), 1.38 - slot.position.y, 0.012);
+    plaque.position.set(slot.plaqueSide * (w / 2 + matte + border + 0.34), 1.38 - PHOTO_Y, 0.012);
 
     group.add(light, frame, mount, photo, lamp, arm, plaque);
     for (const mesh of [frame, mount, photo, plaque]) mesh.userData = { kind: 'photo', item };

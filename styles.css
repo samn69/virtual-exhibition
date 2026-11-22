@@ -85,3 +85,10 @@ dialog p { font-size: 15px; line-height: 1.45; margin: 8px 0; }
 .viewer-close { top: max(12px, env(safe-area-inset-top)); right: 12px; width: 40px; height: 40px; }
 /* on phones the hint sits above the joystick */
 @media (pointer: coarse) { .hint { bottom: calc(max(26px, env(safe-area-inset-bottom)) + 132px); } }
+
+.stairs { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(26px, env(safe-area-inset-bottom)); display: flex; gap: 10px; }
+.stairs[hidden] { display: none; }
+.stairs button { background: var(--gold); color: #1d1712; border: none; border-radius: 999px; padding: 12px 20px; font-size: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+.stairs button[hidden] { display: none; }
+@media (pointer: coarse) { .stairs { left: auto; right: max(18px, env(safe-area-inset-right)); transform: none; flex-direction: column; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 20px); } }
+.rooms-list h3 { margin: 12px 0 2px; font-weight: normal; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); opacity: 0.8; }
