@@ -199,11 +199,10 @@ function roomSlots(space, frames, count) {
   return slots.slice(0, count);
 }
 
-// where the wall lights go in the entrance and the halls, along each wall (z on the east and west
-// walls, x on the north and south), clear of the doorways: about 4.5 to 5.5 m apart
+// where the wall lights go in the halls: two on each wall, clear of the doorways (z on the east
+// and west walls, x on the north and south)
 function wallLights(space, side) {
-  if (space.kind === 'hall') return side === 'E' || side === 'W' ? [-7.9, -2.35, 2.35, 7.9] : [-3.4, 3.4];
-  if (space.kind === 'entrance') return side === 'E' || side === 'W' ? [11.4, 15.1, 18.8] : [];
+  if (space.kind === 'hall') return side === 'E' || side === 'W' ? [-2.35, 2.35] : [-3.4, 3.4];
   return [];
 }
 // put a fitting built in a wall's frame at a place along the wall and a height above the floor
@@ -282,9 +281,15 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
 
     // floor, and a ceiling: all glass in the halls and the entrance (the vault running towards the stairs), a moulded one in the rooms
     batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, OAK_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
-    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: space.kind !== 'room', roof: f < floors - 1 && space.kind === 'hall' ? roofs[f] : batch, alongZ: space.kind === 'room' ? undefined : true });
+    // a hall with another floor above it has a solid ceiling and a large chandelier; only the top
+    // floor's hall (and the entrance, with nothing above it) is roofed in glass
+    const glassRoof = space.kind === 'entrance' || (space.kind === 'hall' && f === floors - 1);
+    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: glassRoof, roof: batch, alongZ: glassRoof ? true : undefined });
 
     if (space.kind === 'room') chandelier((geometry, material, local) => batch.add(geometry, material, matrix({ x: cx, y: y + height, z: cz }).multiply(local)), M);
+    if (space.kind === 'hall' && !glassRoof) { // half as big again, on a short chain, high above the flowers
+      chandelier((geometry, material, local) => batch.add(geometry, material, matrix({ x: cx, y: y + height, z: cz, sx: 1.6, sy: 1.6, sz: 1.6 }).multiply(local)), M, { chain: 0.8 });
+    }
     const frames = {};
     for (const side of ['N', 'S', 'E', 'W']) {
       const frame = frames[side] = wallFrame(space, side);
@@ -304,8 +309,8 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
       const onThis = (geometry, material, local) => batch.add(geometry, material, onWall(frame, {}).multiply(local));
       // rooms: dark wood panelling below the photos
       if (space.kind === 'room') wainscot(onThis, frame.length, doors.map(d => [d.u - doorwayHalfWidth(d.width) - 0.08, d.u + doorwayHalfWidth(d.width) + 0.08]));
-      // the entrance and the halls: brass wall lights, between the doorways
-      for (const at of wallLights(space, side)) onThisAt(onThis, sconce, M, frame.u(at), space.kind === 'entrance' ? 3.0 : 2.6);
+      // the halls: brass wall lights, between the doorways
+      for (const at of wallLights(space, side)) onThisAt(onThis, sconce, M, frame.u(at), 2.6);
 
       for (const d of doors) {
         // a classical stone frame round the doorway, and the name of where it leads

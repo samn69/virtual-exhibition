@@ -62,13 +62,16 @@ export function fittingMaterials() {
 // A crown and a basket of crystal strands at the top, a brass stem, two tiers of curved arms
 // with candles, festoons of crystal beads between the arms, and a crystal ball at the bottom.
 // About 1.3 m across and 3.1 m from the ceiling to the bottom.
-export function chandelier(add, M) {
+// chain: from the ceiling to the crown
+export function chandelier(addToCeiling, M, { chain = 1.55 } = {}) {
   const F = fittingMaterials(), random = seeded(91);
+  const add = (geometry, material, transform) => addToCeiling(geometry, material, matrix({ y: 1.55 - chain }).multiply(transform)); // the body hangs at the end of the chain
   const bead = new THREE.OctahedronGeometry(0.024, 0), drop = new THREE.OctahedronGeometry(0.038, 0);
   const crystal = (x, y, z, big = false) => add(big ? drop : bead, F.crystal, matrix({ x, y, z, sy: big ? 1.8 : 1.3, ry: random() }));
 
-  add(new THREE.CylinderGeometry(0.2, 0.14, 0.08, 24), M.gilt, matrix({ y: -0.04 }));
-  for (let i = 0; i < 15; i++) add(new THREE.TorusGeometry(0.035, 0.009, 6, 12), M.gilt, matrix({ y: -0.13 - i * 0.09, ry: (i % 2) * Math.PI / 2 }));
+  addToCeiling(new THREE.CylinderGeometry(0.2, 0.14, 0.08, 24), M.gilt, matrix({ y: -0.04 }));
+  const links = Math.max(1, Math.round((chain - 0.2) / 0.09));
+  for (let i = 0; i < links; i++) addToCeiling(new THREE.TorusGeometry(0.035, 0.009, 6, 12), M.gilt, matrix({ y: -0.13 - i * 0.09, ry: (i % 2) * Math.PI / 2 }));
 
   // the crown: a ring with curled leaves and drops
   const crownY = -1.55;

@@ -41,24 +41,31 @@ float clouds(vec2 p) {
   return smoothstep(0.48, 0.78, d);
 }
 
+// One layer of stars. The sky is divided like the faces of a cube into square cells; a few cells
+// hold a star, placed well inside the cell so it is never cut off at an edge, and drawn as a soft
+// round point a pixel or two across. Most stars are faint, a few bright, bluish-white to warm.
+vec3 starLayer(vec3 d, float cells, float keep, float seed) {
+  vec3 a = abs(d);
+  vec2 uv; float face;
+  if (a.x >= a.y && a.x >= a.z) { uv = d.yz / a.x; face = sign(d.x); }
+  else if (a.y >= a.z) { uv = d.xz / a.y; face = 3.0 + sign(d.y); }
+  else { uv = d.xy / a.z; face = 6.0 + sign(d.z); }
+  vec2 g = uv * cells, cell = floor(g);
+  vec3 key = vec3(cell, face * 131.0 + seed);
+  if (hash3(key + 0.5) > keep) return vec3(0.0);
+  vec2 centre = cell + 0.3 + 0.4 * vec2(hash3(key + 11.3), hash3(key + 27.1));
+  float px = min(length(fwidth(g)), 0.1); // one screen pixel, in cells
+  float bright = pow(hash3(key + 5.7), 6.0);  // most stars faint, a few bright
+  float r = px * (0.55 + 0.9 * bright);
+  float dist = length(g - centre);
+  float b = exp(-dist * dist / (r * r)) * (0.35 + 2.2 * bright) + bright * 0.25 * exp(-dist / (px * 2.5)); // a small glow round the brightest
+  b *= 0.94 + 0.06 * sin(uTime * (0.3 + 0.6 * bright) + hash3(key + 3.3) * 40.0); // barely twinkling
+  float t = hash3(key + 9.1);
+  return b * mix(vec3(0.78, 0.85, 1.0), vec3(1.0, 0.88, 0.72), t * t);
+}
+
 vec3 stars(vec3 d) {
-  vec3 col = vec3(0.0);
-  for (int layer = 0; layer < 2; layer++) {
-    float scale = layer == 0 ? 90.0 : 200.0;
-    vec3 p = d * scale, cell = floor(p);
-    float h = hash3(cell);
-    float threshold = layer == 0 ? 0.985 : 0.988;
-    if (h > threshold) {
-      // the star sits on the sky sphere (not anywhere in its cell, which drew arcs and dashes)
-      vec3 star = normalize(cell + 0.25 + 0.5 * vec3(hash3(cell + 1.7), hash3(cell + 3.1), hash3(cell + 5.3))) * scale;
-      float dist = length(p - star), pixel = length(fwidth(p));
-      float size = pixel * (layer == 0 ? 1.3 : 0.9); // about a pixel or two across, at any screen size
-      float b = smoothstep(size, 0.0, dist) * (layer == 0 ? 1.6 : 0.7) * (0.3 + 0.7 * (h - threshold) / (1.0 - threshold));
-      b *= 0.92 + 0.08 * sin(uTime * (0.4 + 0.8 * h) + h * 40.0); // a gentle, slow twinkle
-      float t = hash3(cell + 9.1); // a little colour: bluish-white to warm
-      col += b * mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.86, 0.7), t);
-    }
-  }
+  vec3 col = starLayer(d, 36.0, 0.10, 1.0) + starLayer(d, 80.0, 0.05, 2.0);
   // a faint Milky Way across the sky
   vec3 axis = normalize(vec3(0.35, 0.25, 0.9));
   float band = exp(-pow(dot(d, axis) / 0.22, 2.0));

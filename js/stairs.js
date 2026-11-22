@@ -213,7 +213,7 @@ export function buildStairs({ floors: F, root, M, raycastTargets, entranceGroup,
   for (let f = 0; f < F - 1; f++) d.storey(b, f);
   for (let f = 1; f < F; f++) d.gallery(b, f);
   b.batch.build(group, raycastTargets);
-  if (d.statue) decor.push({ group, type: 'horse', x: d.statue[0], y: floorY(0) + FLOOR_H / 2, z: d.statue[1], ry: 0 });
+  if (d.statue) decor.push({ group, type: 'athena', x: d.statue[0], y: floorY(0) + FLOOR_H / 2, z: d.statue[1], ry: 0 });
 
   // the glide: a smooth curve through the route, walked at an even pace
   const route = d.route();
