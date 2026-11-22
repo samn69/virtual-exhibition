@@ -1,6 +1,5 @@
 // Sculptures and plants for the halls and the entrance.
-// The bust, horse, ficus, alocasia and vase are free (CC0) models from Poly Haven, in assets/models;
-// the Athena on the stair landing is a free scan from Three D Scans (threedscans.com).
+// The bust, horse, ficus, alocasia and vase are free (CC0) models from Poly Haven, in assets/models.
 // The monstera, snake plant, bird of paradise, the flower urn and the bouquet in a glass vase are drawn here.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -14,25 +13,17 @@ const MODELS = {
   ficus: { file: 'potted_plant_01', height: 1.9 },
   alocasia: { file: 'potted_plant_02', height: 1.3 },
   vase: { file: 'antique_ceramic_vase_01', height: 0.55 },
-  // the Athena (Minerva of Arezzo) on the stair landing: a free scan from Three D Scans
-  // (threedscans.com), simplified from 2.6 million to 75,000 triangles so phones can draw it. It has
-  // no material of its own and is shown in white marble.
-  athena: { file: 'statue_athena', height: 1.55, ext: 'glb', marble: true },
 };
 const loader = new GLTFLoader();
-// polished white marble for a scan that has no material
-let marbleStatue = null;
-const statueMarble = () => marbleStatue ||= new THREE.MeshStandardMaterial({ color: '#a9a399', roughness: 0.5, metalness: 0 });
 const loading = new Map();
 function model(type, envMap) {
-  const { file, height, ext = 'gltf', marble } = MODELS[type];
+  const { file, height } = MODELS[type];
   if (!loading.has(file)) {
-    loading.set(file, loader.loadAsync(`assets/models/${file}/${file}.${ext}`).then(gltf => {
+    loading.set(file, loader.loadAsync(`assets/models/${file}/${file}.gltf`).then(gltf => {
       // scale to its real size, standing on y = 0, centred
       const scene = gltf.scene, box = new THREE.Box3().setFromObject(scene);
       const size = box.getSize(new THREE.Vector3()), centre = box.getCenter(new THREE.Vector3());
       const s = height / size.y;
-      if (marble) scene.traverse(o => { if (o.isMesh) o.material = statueMarble(); });
       scene.traverse(o => { if (o.material) { o.material.userData.shared = true; o.material.envMap = envMap; o.material.envMapIntensity = 0.6; } });
       const wrapper = new THREE.Group();
       scene.position.set(-centre.x * s, -box.min.y * s, -centre.z * s);
@@ -324,7 +315,7 @@ export function decorate(list, envMap) {
     let lift = 0;
     if (type === 'bust') { holder.add(pedestal(1.1)); lift = 1.1; }
     if (type === 'vase') { holder.add(pedestal(1.0)); lift = 1.0; }
-    if (type === 'horse' || MODELS[type]?.marble) { holder.add(plinth()); lift = 0.78; }
+    if (type === 'horse') { holder.add(plinth()); lift = 0.78; }
     jobs.push(model(type, envMap).then(object => { object.position.y = lift; holder.add(object); }).catch(error => console.warn(`Couldn't load the ${type}`, error)));
   }
   return Promise.all(jobs);
