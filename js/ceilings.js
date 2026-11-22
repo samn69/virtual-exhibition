@@ -1,4 +1,4 @@
-// Ceilings with a skylight: the flat ceiling opens into an arched glass roof with iron ribs,
+// Ceilings. Halls get a skylight: the flat ceiling opens into an arched glass roof with iron ribs,
 // the same shape as the doorways. The sky shows through the glass.
 import * as THREE from 'three';
 import { matrix } from './batch.js';
@@ -11,7 +11,7 @@ function under(x0, x1, z0, z1) {
   return g;
 }
 
-export function ceiling(batch, M, { x0, x1, z0, z1, y, height }) {
+export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true }) {
   const top = y + height, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const alongZ = z1 - z0 >= x1 - x0;
   const span = alongZ ? x1 - x0 : z1 - z0, length = alongZ ? z1 - z0 : x1 - x0;
@@ -19,6 +19,18 @@ export function ceiling(batch, M, { x0, x1, z0, z1, y, height }) {
   const base = matrix({ x: cx, y: top, z: cz, ry: alongZ ? 0 : Math.PI / 2 });
   const at = (a, up, b, extra = {}) => base.clone().multiply(matrix({ x: a, y: up, z: b, ...extra }));
   const pad = 0.2; // the ceiling runs over the walls
+
+  if (!skylight) { // a plain ceiling with a moulded panel and a rosette in the middle
+    batch.add(under(x0 - pad, x1 + pad, z0 - pad, z1 + pad), M.ceiling, matrix({ y: top }));
+    const pa = span - 2.4, pb = length - 2.4;
+    for (const s of [-1, 1]) {
+      batch.add(new THREE.BoxGeometry(pa + 0.16, 0.08, 0.16), M.stone, at(0, -0.04, s * pb / 2));
+      batch.add(new THREE.BoxGeometry(0.16, 0.08, pb), M.stone, at(s * pa / 2, -0.04, 0));
+    }
+    batch.add(new THREE.CylinderGeometry(0.45, 0.3, 0.1, 32), M.stone, at(0, -0.05, 0));
+    batch.add(new THREE.SphereGeometry(0.14, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.stone, at(0, -0.1, 0));
+    return;
+  }
 
   // a flat ceiling with an opening for the skylight
   const across = span * 0.5, along = Math.min(length * 0.62, length - 2.4);

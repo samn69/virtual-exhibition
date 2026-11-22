@@ -5,12 +5,12 @@ A classical museum in the browser where you walk from room to room and see photo
 ## The building
 
 - **Entrance:** carved walnut front doors in a temple front of marble columns and a pediment, then five oval marble steps with a red carpet up to the central hall.
-- **Central hall:** red wallpaper, plants in the four corners and a statue-sized flower arrangement in the middle. The floor is light oak.
+- **Central hall:** red wallpaper, a ficus in each corner and, in the middle, a carved stone urn of pink peonies, white roses and hydrangeas on a pedestal. The floor is light oak.
 - **Two wings** off the hall, each with 4 rooms walked as a loop: blue rooms on the right, green on the left, each with one of three small wallpaper patterns (fleur-de-lis, diamonds, or lily and dot).
 - **Doorways:** arched, in a moulded stone frame with a keystone.
-- **Ceilings** are 7.5 m high, with an arched glass roof in the halls and rooms.
+- **Ceilings** are 7.5 m high. The entrance, the central halls and the stair hall have an arched glass roof; the rooms have a moulded ceiling with a rosette.
 - **The sky** through the glass follows the visitor's clock: sun and drifting clouds by day, a warm sunset, and stars, the Milky Way and the moon (in its real phase) at night. `?time=21` shows a chosen hour.
-- **Imperial staircase** at the far end of the hall: one central flight up to a landing, then two flights back to the next floor, which has the same plan. Tap the stairs or the **↑ Floor** button to go up or down.
+- **Imperial staircase** at the far end of the hall: red-carpeted, with one central flight up to a landing, then two flights back to the next floor, which has the same plan. Tap the stairs or the **↑ Floor** button to go up or down.
 
 **Live:** https://samn69.github.io/virtual-exhibition/
 
@@ -71,6 +71,6 @@ Plain files with no build step. [three.js](https://threejs.org) loads from a CDN
 
 ## Credits
 
-The marble bust, horse statue, ficus, alocasia and ceramic vase are [Poly Haven](https://polyhaven.com) models, released under CC0 (free for any use). They are in `assets/models`. The monstera, snake plant, bird of paradise and the flower arrangement are drawn in code.
+The marble bust, horse statue, ficus, alocasia and ceramic vase are [Poly Haven](https://polyhaven.com) models, released under CC0 (free for any use). They are in `assets/models`. The monstera, snake plant, bird of paradise and the flower urn are drawn in code.
 
 The moon's surface is from NASA's [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (Scientific Visualization Studio), which is in the public domain. It is in `assets/sky`.

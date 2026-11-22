@@ -218,9 +218,9 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     // blue rooms on the right, green on the left, each with one of the three patterns; red halls
     const paper = room ? wallpaper(WING_COLORS[space.wing], space.order % 3) : wallpaper(HALL_COLOR, 2);
 
-    // floor, and a ceiling with a skylight
+    // floor, and a ceiling: a skylight in the halls and the entrance, a plain moulded one in the rooms
     batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, OAK_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
-    ceiling(batch, M, { x0, x1, z0, z1, y, height });
+    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: space.kind !== 'room' });
 
     const frames = {};
     for (const side of ['N', 'S', 'E', 'W']) {
@@ -293,10 +293,9 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     walk[Math.max(f, 0)].circles.push([x, z, radius]);
   };
   // the halls: a plant in each corner and a large flower arrangement in the middle
-  const corners = [['ficus', 'ficus', 'ficus', 'ficus'], ['bird', 'bird', 'monstera', 'monstera']];
   for (let f = 0; f < floors; f++) {
-    const kinds = corners[f % 2], cx = HALL_HALF - 1.0;
-    [[-cx, -8.2], [cx, -8.2], [-cx, 8.2], [cx, 8.2]].forEach(([x, z], i) => place(f, kinds[i], x, z, 0, 0.75));
+    const cx = HALL_HALF - 1.0;
+    for (const [x, z] of [[-cx, -8.2], [cx, -8.2], [-cx, 8.2], [cx, 8.2]]) place(f, 'ficus', x, z, 0, 0.75);
     place(f, 'flowers', 0, 0, 0, 1.0);
   }
   // the entrance belongs to the ground floor's group, at street level: busts beside the steps,

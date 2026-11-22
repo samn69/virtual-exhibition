@@ -80,13 +80,18 @@ class Builder {
   constructor(M) { this.M = M; this.batch = new Batch(); }
   box(x, y, z, sx, sy, sz, material, meta, ry = 0) { this.batch.add(new THREE.BoxGeometry(sx, sy, sz), material, matrix({ x, y, z, ry }), meta); }
   // a level slab whose top is at y
+  rug(x0, x1, z0, z1, y, meta) { this.box((x0 + x1) / 2, y + 0.007, (z0 + z1) / 2, x1 - x0, 0.014, z1 - z0, this.M.carpet, meta); }
   slab(x0, x1, z0, z1, y, meta, thick = 0.45) { this.box((x0 + x1) / 2, y - thick / 2, (z0 + z1) / 2, x1 - x0, thick, z1 - z0, this.M.marble, meta); }
   // a straight flight; (x, z) is the middle of its first step's front edge
   flight({ x, z, dir: [dx, dz], width, steps, rise, y0, solid, meta }) {
-    const yaw = Math.atan2(dx, dz);
+    const yaw = Math.atan2(dx, dz), cw = width * 0.72; // a red carpet runner up the middle
+    const at = (along, y, extra = {}) => matrix({ x: x + dx * along, y, z: z + dz * along, ry: yaw, ...extra });
     for (let k = 0; k < steps; k++) {
       const along = (k + 0.5) * TREAD, top = y0 + (k + 1) * rise, h = solid ? top - y0 + 0.02 : rise + 0.14;
       this.box(x + dx * along, top - h / 2, z + dz * along, width, h, TREAD + 0.02, this.M.marble, meta, yaw);
+      this.batch.add(new THREE.BoxGeometry(cw, 0.014, TREAD + 0.02), this.M.carpet, at(along, top + 0.007), meta);        // on the tread
+      this.batch.add(new THREE.BoxGeometry(cw, rise, 0.014), this.M.carpet, at(k * TREAD - 0.017, top - rise / 2), meta);  // down the riser
+      this.batch.add(new THREE.CylinderGeometry(0.012, 0.012, cw + 0.12, 8), this.M.brass, at(k * TREAD - 0.03, top - rise + 0.02, { rz: Math.PI / 2 }));
     }
     if (!solid) { // the sloping underside
       const run = (steps - 1) * TREAD, climb = (steps - 1) * rise, along = TREAD + run / 2;
@@ -127,6 +132,7 @@ function design(F) {
       const y = floorY(f);
       b.flight({ x: 0, z: ZA, dir: [0, -1], width: 3.6, steps: n - 1, rise, y0: y, solid: f === 0, meta: stairs(f) });
       b.slab(-W, W, z0, zB, y + half, stairs(f));
+      b.rug(-5.65, 5.65, zB - 1.5, zB, y + half, stairs(f)); // carpet across the landing, joining the flights
       for (const s of [-1, 1]) {
         b.flight({ x: s * 4.7, z: zB, dir: [0, 1], width: 2.6, steps: n - 1, rise, y0: y + half, solid: false, meta: stairs(f) });
         b.balustrade([s * 1.8, y, ZA], [s * 1.8, y + half, zB]);
@@ -138,14 +144,17 @@ function design(F) {
     gallery(b, f) {
       const y = floorY(f), next = f < F - 1;
       b.slab(-W, W, ZA, ZS, y, floorMeta(f), 0.5);
+      // carpet from the doorway to the stairs; above the ground floor it also joins the flights arriving from below
+      b.rug(-1.3, 1.3, ZA, ZS, y, floorMeta(f));
+      if (f > 0) b.rug(-5.65, 5.65, ZA, ZA + 1.3, y, floorMeta(f));
       for (const s of [-1, 1]) b.balustrade([s * (next ? 1.8 : 0), y, ZA], [s * 3.4, y, ZA]);
     },
     walkable(f, x, z) { return inRect(x, z, -W + MARGIN, W - MARGIN, ZA + 0.25, ZS + 0.15); },
     route() {
-      return [[0, ZS - 0.7, 0], [0, ZA + 0.3, 0], [0, ZA, 0], [0, zB, half], [0, zB - 1.3, half], [4.7, zB - 1.3, half], [4.7, zB, half],
-        [4.7, ZA, FLOOR_H], [4.7, ZA + 0.9, FLOOR_H], [1.2, ZS - 1.2, FLOOR_H], [0, ZS - 0.7, FLOOR_H]];
+      return [[0, ZS - 0.7, 0], [0, ZA + 0.3, 0], [0, ZA, 0], [0, zB, half], [0, zB - 0.9, half], [4.7, zB - 0.9, half], [4.7, zB, half],
+        [4.7, ZA, FLOOR_H], [4.6, ZA + 0.55, FLOOR_H], [3.0, ZA + 1.25, FLOOR_H], [1.0, ZA + 1.4, FLOOR_H], [0, ZA + 1.4, FLOOR_H]];
     },
-    statue: [0, z0 + 1.1],
+    statue: [0, z0 + 0.62], // against the back wall of the landing, clear of the glide
   };
 }
 
