@@ -21,6 +21,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hud-actions button { background: var(--panel); border: 1px solid rgba(217,187,114,0.5); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
 .hud-actions button:hover { border-color: var(--gold); }
 
+.hud-actions .music-button { padding: 7px 12px; color: rgba(255,255,255,0.55); }
+.hud-actions .music-button.on { color: var(--gold); }
+.music-panel {
+  position: fixed; z-index: 6; top: max(56px, calc(env(safe-area-inset-top) + 48px)); right: max(12px, env(safe-area-inset-right));
+  width: min(340px, calc(100vw - 24px)); background: rgba(26,21,18,0.95); border: 1px solid rgba(217,187,114,0.4); border-radius: 14px;
+  padding: 12px 14px 14px; font-size: 14px; visibility: hidden; opacity: 0; transform: translateY(-6px); transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+}
+.music-panel.open { visibility: visible; opacity: 1; transform: none; }
+.music-head { display: flex; justify-content: space-between; align-items: center; color: var(--gold); margin-bottom: 8px; letter-spacing: 0.04em; }
+.music-head button { background: none; border: none; font-size: 16px; padding: 2px 6px; }
+.music-title { font-size: 15px; }
+.music-by { color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 2px; }
+.music-row { display: flex; gap: 8px; margin: 12px 0; }
+.music-row button, .music-switch { background: rgba(255,255,255,0.06); border: 1px solid rgba(217,187,114,0.45); border-radius: 999px; padding: 7px 14px; }
+.music-switch { width: 100%; }
+.music-note { margin: 8px 0 10px; font-size: 12px; color: rgba(255,255,255,0.6); }
+#spotifyFrame { border-radius: 12px; display: block; }
+
 .room-banner {
   position: fixed; top: 30%; left: 50%; transform: translateX(-50%); pointer-events: none; opacity: 0;
   font-size: clamp(26px, 5vw, 44px); color: var(--gold); text-shadow: 0 2px 12px #000; text-align: center; white-space: nowrap;
@@ -77,6 +95,14 @@ dialog p { font-size: 15px; line-height: 1.45; margin: 8px 0; }
 .closeup-nav.next { right: max(12px, env(safe-area-inset-right)); }
 .closeup-close { top: max(56px, calc(env(safe-area-inset-top) + 48px)); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; }
 .closeup-label { position: absolute; top: max(56px, calc(env(safe-area-inset-top) + 48px)); right: max(62px, calc(env(safe-area-inset-right) + 50px)); height: 40px; padding: 0 16px; background: var(--panel); border: 1px solid rgba(217,187,114,0.4); border-radius: 999px; font-size: 14px; }
+.closeup-full { position: absolute; top: max(56px, calc(env(safe-area-inset-top) + 48px)); right: max(146px, calc(env(safe-area-inset-right) + 134px)); height: 40px; padding: 0 16px; background: var(--panel); border: 1px solid rgba(217,187,114,0.4); border-radius: 999px; font-size: 14px; }
+.full-view { position: fixed; inset: 0; background: #0b0908; display: flex; align-items: center; justify-content: center; touch-action: none; z-index: 5; }
+.full-view[hidden] { display: none; }
+.full-view img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.full-loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.full-loading[hidden] { display: none; }
+.full-title { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(14px, env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); text-align: center; font-size: 15px; color: var(--gold); background: rgba(11,9,8,0.6); padding: 6px 14px; border-radius: 999px; pointer-events: none; }
+.full-close { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; background: var(--panel); border: 1px solid rgba(217,187,114,0.4); border-radius: 999px; }
 body.closeup-open .edit-bar, body.closeup-open .loading, body.closeup-open .joystick, body.closeup-open .stairs { display: none !important; }
 .closeup-tools { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: max-content; max-width: calc(100vw - 24px); }
 .closeup-tools[hidden] { display: none; }

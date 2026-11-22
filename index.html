@@ -20,10 +20,30 @@
   <header class="hud">
     <div id="roomName" class="room-name" aria-live="polite"></div>
     <div class="hud-actions">
+      <button id="musicButton" class="music-button" type="button" aria-label="Music">♪</button>
       <button id="roomsButton" type="button">Rooms</button>
       <button id="editButton" type="button" hidden>Edit</button>
     </div>
   </header>
+
+  <!-- music: classical piano, or the owner's Spotify playlist -->
+  <div id="musicPanel" class="music-panel" aria-hidden="true">
+    <div class="music-head"><span>Music</span><button id="musicClose" type="button" aria-label="Close">✕</button></div>
+    <div id="musicClassical">
+      <div id="musicTitle" class="music-title"></div>
+      <div id="musicBy" class="music-by"></div>
+      <div class="music-row">
+        <button id="musicPlay" type="button">▶ Play</button>
+        <button id="musicNext" type="button">Next ›</button>
+      </div>
+      <button id="musicSpotify" class="music-switch" type="button">Play my Spotify playlist instead</button>
+    </div>
+    <div id="musicSpotifyBox" hidden>
+      <iframe id="spotifyFrame" title="Spotify playlist" width="100%" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      <p class="music-note">Signed in to Spotify in this browser: full songs. Otherwise 30-second previews.</p>
+      <button id="musicBack" class="music-switch" type="button">Back to classical piano</button>
+    </div>
+  </div>
 
   <div id="editBar" class="edit-bar" hidden>
     <span id="editBarNote" class="edit-note"></span>
@@ -54,12 +74,23 @@
     <button id="closeupNext" class="closeup-nav next" type="button" aria-label="Next photo">›</button>
     <button id="closeupClose" class="closeup-close" type="button" aria-label="Step back">✕</button>
     <button id="closeupLabel" class="closeup-label" type="button">Label</button>
+    <button id="closeupFull" class="closeup-full" type="button">Full screen</button>
     <div id="closeupTools" class="closeup-tools" hidden>
       <button id="closeupEdit" type="button">Edit details</button>
       <button id="closeupLeft" type="button" aria-label="Move one place back">← Move</button>
       <button id="closeupRight" type="button" aria-label="Move one place on">Move →</button>
       <button id="closeupRemove" class="danger" type="button">Remove</button>
     </div>
+  </div>
+
+  <!-- the photo on its own, filling the screen -->
+  <div id="fullView" class="full-view" hidden>
+    <img id="fullImage" alt="">
+    <div id="fullLoading" class="full-loading"><span class="spinner"></span></div>
+    <div id="fullTitle" class="full-title"></div>
+    <button id="fullPrev" class="closeup-nav prev" type="button" aria-label="Previous photo">‹</button>
+    <button id="fullNext" class="closeup-nav next" type="button" aria-label="Next photo">›</button>
+    <button id="fullClose" class="full-close" type="button" aria-label="Back to the wall">✕</button>
   </div>
 
   <dialog id="signInDialog">

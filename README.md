@@ -42,6 +42,10 @@ The gallery only has access to files it created itself (Google's `drive.file` pe
 
 `?mockdrive` (with `?edit`) tries the editing without Google, keeping everything in the page until it's reloaded.
 
+## Music
+
+The ♪ button at the top opens the music. Quiet classical piano plays by default, from the visitor's first tap or click (browsers don't allow sound before that). Pause and Next are in the panel, and a paused choice is remembered. **Play my Spotify playlist instead** swaps in a Spotify player for the owner's playlist: full songs for visitors signed in to Spotify in that browser, 30-second previews for everyone else. The playlist is set in `js/music.js`.
+
 ## The sample exhibition: `exhibition.json`
 
 ```json
@@ -93,5 +97,9 @@ Plain files with no build step. [three.js](https://threejs.org) loads from a CDN
 The marble bust, horse statue, ficus, alocasia and ceramic vase are [Poly Haven](https://polyhaven.com) models, released under CC0 (free for any use). They are in `assets/models`. The monstera, snake plant, bird of paradise and the flower urn are drawn in code.
 
 The moon's surface is from NASA's [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (Scientific Visualization Studio), which is in the public domain. It is in `assets/sky`.
+
+The music in `assets/music/` is from Wikimedia Commons, free to use:
+- Bach, Goldberg Variations: Aria and Prelude in C major, BWV 846, played by Kimiko Ishizaka (CC0, the Open Goldberg Variations and Open Well-Tempered Clavier projects).
+- Chopin, Nocturnes Op. 9 No. 2 and Op. 27 No. 2, played by Frank Levy, and Op. 15 No. 2, played by Luke Faulkner (public domain, from Musopen).
 
 Camera details are read with [exifr](https://github.com/MikeKovarik/exifr) (MIT licence), loaded from a CDN only in edit mode.

@@ -9,6 +9,7 @@ import { loadExhibition, normalizeExhibition } from './exhibition.js';
 import { manifestId, readPublicManifest } from './drive.js';
 import { Closeup } from './closeup.js';
 import { Editor } from './editor.js';
+import { Music } from './music.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('scene');
@@ -189,14 +190,59 @@ function tap(x, y) {
 }
 
 // ── a close look at a photo, and edit mode ──
+const music = new Music();
 const closeup = new Closeup({ camera, walker, overlay: $('closeup'), artworks: () => artworks, onChange: item => {
   document.body.classList.toggle('closeup-open', !!item);
+  if (!item) closeFull();
   $('closeupLabel').textContent = closeup.reading ? 'Photo' : 'Label';
   $('closeupLeft').disabled = !item || item.index === 0;
   $('closeupRight').disabled = !item || item.index === exhibition.rooms[item.room].photos.length - 1;
 } });
 $('closeupClose').onclick = () => closeup.close();
 $('closeupLabel').onclick = () => closeup.toggleLabel();
+
+// ── the photo on its own, full screen (from a close look) ──
+function openFull() {
+  const item = closeup.item;
+  if (!item) return;
+  const image = $('fullImage');
+  $('fullLoading').hidden = false;
+  image.onload = image.onerror = () => { $('fullLoading').hidden = true; };
+  image.src = item.photo.fullUrl || item.canvas?.toDataURL('image/jpeg', 0.9) || '';
+  image.alt = item.photo.title || 'Photo';
+  $('fullTitle').textContent = [item.photo.title || 'Untitled', item.photo.year].filter(Boolean).join(', ');
+  $('fullView').hidden = false;
+  closeup.blocked = true;
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+}
+function closeFull() {
+  if ($('fullView').hidden) return;
+  $('fullView').hidden = true;
+  $('fullImage').removeAttribute('src');
+  closeup.blocked = false;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+function stepFull(direction) { closeup.step(direction); openFull(); }
+$('closeupFull').onclick = openFull;
+$('fullClose').onclick = closeFull;
+$('fullPrev').onclick = () => stepFull(-1);
+$('fullNext').onclick = () => stepFull(1);
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) closeFull(); }); // Esc leaves full screen
+addEventListener('keydown', e => {
+  if ($('fullView').hidden) return;
+  if (e.key === 'Escape') closeFull();
+  else if (e.key === 'ArrowLeft') stepFull(-1);
+  else if (e.key === 'ArrowRight') stepFull(1);
+});
+let fullSwipe = null; // swipe for the next photo, tap to go back to the wall
+$('fullView').addEventListener('pointerdown', e => { if (e.target.closest('button')) return; fullSwipe = { x: e.clientX, y: e.clientY }; });
+$('fullView').addEventListener('pointerup', e => {
+  if (!fullSwipe) return;
+  const dx = e.clientX - fullSwipe.x, dy = e.clientY - fullSwipe.y;
+  fullSwipe = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) stepFull(dx < 0 ? 1 : -1);
+  else if (Math.hypot(dx, dy) < 10) closeFull();
+});
 $('closeupPrev').onclick = () => closeup.step(-1);
 $('closeupNext').onclick = () => closeup.step(1);
 const editor = new Editor({
@@ -253,4 +299,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // for testing: ?debug gives the console access to the walker and the photos
-if (new URLSearchParams(location.search).has('debug')) window.app = { scene, walker, get museum() { return museum; }, get artworks() { return artworks; }, show, apply, closeup, editor, climb };
+if (new URLSearchParams(location.search).has('debug')) window.app = { scene, walker, get museum() { return museum; }, get artworks() { return artworks; }, show, apply, closeup, editor, climb, music };

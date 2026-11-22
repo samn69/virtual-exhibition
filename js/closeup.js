@@ -33,7 +33,7 @@ export class Closeup {
       start = null;
     });
     addEventListener('keydown', e => {
-      if (!this.item || e.target.closest?.('input,textarea,select,dialog[open]')) return;
+      if (!this.item || this.blocked || e.target.closest?.('input,textarea,select,dialog[open]')) return;
       if (e.key === 'Escape') this.close();
       else if (e.key === 'ArrowLeft') this.step(-1);
       else if (e.key === 'ArrowRight') this.step(1);

@@ -25,7 +25,7 @@ async function download(url) {
   return blob;
 }
 
-const frameMaterial = new THREE.MeshLambertMaterial({ color: '#a8823a', emissive: '#2a1c06' });
+const frameMaterial = new THREE.MeshLambertMaterial({ color: '#4a2d1b', emissive: '#120905' }); // dark brown wood
 const mountMaterial = new THREE.MeshLambertMaterial({ color: '#efe8d8' });
 const brassMaterial = new THREE.MeshLambertMaterial({ color: '#8d6f35', emissive: '#1d1406' });
 let glowTexture = null;
