@@ -1,5 +1,5 @@
-// Ceilings. Halls get a skylight: the flat ceiling opens into an arched glass roof with iron ribs,
-// the same shape as the doorways. The sky shows through the glass.
+// Ceilings. The entrance and the halls are roofed in glass: an arched vault over the whole space,
+// on iron ribs. The sky shows through the glass. Rooms have a plain moulded ceiling.
 import * as THREE from 'three';
 import { matrix } from './batch.js';
 
@@ -13,9 +13,8 @@ function under(x0, x1, z0, z1) {
 
 // roof: an optional separate batch for the glass vault, which rises above the ceiling (into the
 // floor above, so it is only drawn while the visitor is below it)
-export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true, roof = batch }) {
+export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true, roof = batch, alongZ = z1 - z0 >= x1 - x0 }) {
   const top = y + height, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-  const alongZ = z1 - z0 >= x1 - x0;
   const span = alongZ ? x1 - x0 : z1 - z0, length = alongZ ? z1 - z0 : x1 - x0;
   // place something given in "vault coordinates" (a across, b along, up), centred on the space
   const base = matrix({ x: cx, y: top, z: cz, ry: alongZ ? 0 : Math.PI / 2 });
@@ -34,23 +33,25 @@ export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true, 
     return;
   }
 
-  // a flat ceiling with an opening for the skylight
-  const across = span * 0.5, along = Math.min(length * 0.62, length - 2.4);
-  const hole = alongZ ? [cx - across / 2, cx + across / 2, cz - along / 2, cz + along / 2] : [cx - along / 2, cx + along / 2, cz - across / 2, cz + across / 2];
-  const [hx0, hx1, hz0, hz1] = hole;
-  const X0 = x0 - pad, X1 = x1 + pad, Z0 = z0 - pad, Z1 = z1 + pad;
-  for (const r of [[X0, X1, Z0, hz0], [X0, X1, hz1, Z1], [X0, hx0, hz0, hz1], [hx1, X1, hz0, hz1]]) batch.add(under(...r), M.ceiling, matrix({ y: top }));
-
-  // an arched glass roof over the opening, with iron ribs
-  const r = across / 2;
-  roof.add(new THREE.CylinderGeometry(r, r, along, 32, 1, true, -Math.PI / 2, Math.PI), M.laylight, at(0, 0, 0, { rx: -Math.PI / 2 }));
-  for (const s of [-1, 1]) roof.add(new THREE.CircleGeometry(r, 24, 0, Math.PI), M.laylight, at(0, 0, s * along / 2));
-  const ribs = Math.max(2, Math.round(along / 1.2));
-  for (let i = 0; i <= ribs; i++) roof.add(new THREE.TorusGeometry(r - 0.03, 0.035, 6, 24, Math.PI), M.iron, at(0, 0, -along / 2 + (along * i) / ribs));
-  for (const a of [Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4]) roof.add(new THREE.BoxGeometry(0.05, 0.05, along), M.iron, at(Math.cos(a) * (r - 0.03), Math.sin(a) * (r - 0.03), 0));
-  // a stone frame round the opening
-  for (const s of [-1, 1]) {
-    roof.add(new THREE.BoxGeometry(across + 0.6, 0.3, 0.3), M.stone, at(0, -0.15, s * (along / 2 + 0.15)));
-    roof.add(new THREE.BoxGeometry(0.3, 0.3, along), M.stone, at(s * (across / 2 + 0.15), -0.15, 0));
+  // the whole ceiling is glass: one arched vault from wall to wall, the shape of the old skylight
+  // (as high as it was, so flatter), on iron ribs, with half-round glass ends over the end walls
+  const r = span / 2, rise = Math.min(r, 2.5), k = rise / r, along = length + 2 * pad;
+  const flat = { sy: k }; // squash the round shapes into the vault's curve
+  roof.add(new THREE.CylinderGeometry(r, r, along, 48, 1, true, -Math.PI / 2, Math.PI), M.laylight, at(0, 0, 0, { rx: -Math.PI / 2, sz: k }));
+  for (const s of [-1, 1]) roof.add(new THREE.CircleGeometry(r, 32, 0, Math.PI), M.laylight, at(0, 0, s * length / 2, flat));
+  // arched ribs across, and purlins along
+  const ribs = Math.max(2, Math.round(length / 1.5));
+  for (let i = 0; i <= ribs; i++) roof.add(new THREE.TorusGeometry(r - 0.04, 0.04, 6, 40, Math.PI), M.iron, at(0, 0, -length / 2 + (length * i) / ribs, flat));
+  const purlins = 8;
+  for (let i = 1; i < purlins; i++) {
+    const a = (i / purlins) * Math.PI;
+    roof.add(new THREE.BoxGeometry(0.06, 0.06, length), M.iron, at(Math.cos(a) * (r - 0.05), Math.sin(a) * (r - 0.05) * k, 0));
   }
+  // the ends: iron bars in the half-round glass, like a fan
+  for (const s of [-1, 1]) for (let i = 1; i < 6; i++) {
+    const a = (i / 6) * Math.PI, x = Math.cos(a) * r / 2, y = Math.sin(a) * r * k / 2;
+    roof.add(new THREE.BoxGeometry(0.05, Math.hypot(x * 2, y * 2), 0.05), M.iron, at(x, y, s * (length / 2 - 0.03), { rz: Math.atan2(y, x) - Math.PI / 2 }));
+  }
+  // an iron sill along the top of each long wall, where the vault starts
+  for (const s of [-1, 1]) roof.add(new THREE.BoxGeometry(0.22, 0.12, along), M.iron, at(s * (r - 0.08), 0.03, 0));
 }

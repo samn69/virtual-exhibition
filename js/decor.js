@@ -1,6 +1,6 @@
 // Sculptures and plants for the halls and the entrance.
 // The bust, horse, ficus, alocasia and vase are free (CC0) models from Poly Haven, in assets/models.
-// The monstera, snake plant, bird of paradise and the flower urn are drawn here.
+// The monstera, snake plant, bird of paradise, the flower urn and the bouquet in a glass vase are drawn here.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -52,6 +52,9 @@ function materials() {
     blooms: new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
     flowerLeaf: new THREE.MeshLambertMaterial({ color: '#3f6b34', side: THREE.DoubleSide }),
     foliage: new THREE.MeshLambertMaterial({ color: '#2f4f27' }),
+    glass: new THREE.MeshPhongMaterial({ color: '#e8f2ee', specular: '#ffffff', shininess: 120, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }),
+    bouquetFill: new THREE.MeshLambertMaterial({ color: '#6c5a86' }), // the shadowy depths among the flowers
+    water: new THREE.MeshLambertMaterial({ color: '#cfe3dc', transparent: true, opacity: 0.25, depthWrite: false }),
   };
   for (const m of Object.values(shared)) m.userData.shared = true; // kept when the gallery is rebuilt
   return shared;
@@ -127,12 +130,33 @@ function plant(kind) {
   return group;
 }
 
+// blooms, in meshes with vertex colours (shared by the arrangements below); ruffled petals are darker in their folds
+const ruffled = (radius, detail, squash, roughness, seed) => {
+  const g = new THREE.IcosahedronGeometry(radius, detail), p = g.attributes.position, shade = [];
+  for (let i = 0; i < p.count; i++) {
+    const v = new THREE.Vector3().fromBufferAttribute(p, i), n = v.clone().normalize();
+    const h = Math.sin(n.x * 17.1 + seed) * Math.sin(n.y * 13.7) * Math.sin(n.z * 15.3 + seed * 2);
+    const k = 1 + roughness * h; v.multiplyScalar(k); v.y *= squash; p.setXYZ(i, v.x, v.y, v.z); shade.push(0.78 + 0.22 * (h * 0.5 + 0.5));
+  }
+  g.computeVertexNormals(); g.userData.shade = shade; return g;
+};
+const floret = (() => { const sh = new THREE.Shape(); for (let i = 0; i <= 32; i++) { const a = (i / 32) * Math.PI * 2, r = 0.012 + 0.022 * Math.abs(Math.cos(a * 2)); i ? sh.lineTo(r * Math.cos(a), r * Math.sin(a)) : sh.moveTo(r * Math.cos(a), r * Math.sin(a)); } return new THREE.ShapeGeometry(sh).toNonIndexed(); })();
+const coloured = (geometry, color, transform) => {
+  const g = geometry.clone().applyMatrix4(transform), c = new THREE.Color(color), shade = geometry.userData.shade, out = [];
+  for (let i = 0; i < g.attributes.position.count; i++) { const k = shade ? shade[i] : 1; out.push(c.r * k, c.g * k, c.b * k); }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(out, 3));
+  return g;
+};
+const face = out => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), out);
+const leafShape = (() => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(0.05, 0.08, 0, 0.17); sh.quadraticCurveTo(-0.05, 0.08, 0, 0); return new THREE.ShapeGeometry(sh, 6); })();
+
 // a large arrangement of flowers, as in a formal garden: a carved stone urn with handles on a
 // square pedestal with carved panels, holding pink peonies, white and cream roses and white
 // hydrangeas, with greenery trailing over the rim. About as tall as a statue.
 function flowers() {
   const random = seeded(77), m = materials(), group = new THREE.Group();
   const stone = m.marble, pedH = 1.0, urnH = 0.82, rim = pedH + urnH;
+  const peony = ruffled(0.12, 2, 0.78, 0.22, 1), rose = ruffled(0.08, 1, 0.8, 0.12, 4);
   const box = (w, h, d, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), stone); b.position.set(x, y, z); group.add(b); };
 
   // the pedestal: plinth, a die with a carved panel and medallion on each face, and a capping
@@ -165,24 +189,6 @@ function flowers() {
     h.position.set(s * 0.38, pedH + 0.6, 0); h.rotation.set(0, 0, s > 0 ? -0.9 : Math.PI - 0.4); group.add(h);
   }
 
-  // blooms, all in one mesh with vertex colours; ruffled petals are darker in their folds
-  const ruffled = (radius, detail, squash, roughness, seed) => {
-    const g = new THREE.IcosahedronGeometry(radius, detail), p = g.attributes.position, shade = [];
-    for (let i = 0; i < p.count; i++) {
-      const v = new THREE.Vector3().fromBufferAttribute(p, i), n = v.clone().normalize();
-      const h = Math.sin(n.x * 17.1 + seed) * Math.sin(n.y * 13.7) * Math.sin(n.z * 15.3 + seed * 2);
-      const k = 1 + roughness * h; v.multiplyScalar(k); v.y *= squash; p.setXYZ(i, v.x, v.y, v.z); shade.push(0.78 + 0.22 * (h * 0.5 + 0.5));
-    }
-    g.computeVertexNormals(); g.userData.shade = shade; return g;
-  };
-  const peony = ruffled(0.12, 2, 0.78, 0.22, 1), rose = ruffled(0.08, 1, 0.8, 0.12, 4);
-  const floret = (() => { const sh = new THREE.Shape(); for (let i = 0; i <= 32; i++) { const a = (i / 32) * Math.PI * 2, r = 0.012 + 0.022 * Math.abs(Math.cos(a * 2)); i ? sh.lineTo(r * Math.cos(a), r * Math.sin(a)) : sh.moveTo(r * Math.cos(a), r * Math.sin(a)); } return new THREE.ShapeGeometry(sh).toNonIndexed(); })();
-  const coloured = (geometry, color, transform) => {
-    const g = geometry.clone().applyMatrix4(transform), c = new THREE.Color(color), shade = geometry.userData.shade, out = [];
-    for (let i = 0; i < g.attributes.position.count; i++) { const k = shade ? shade[i] : 1; out.push(c.r * k, c.g * k, c.b * k); }
-    g.setAttribute('color', new THREE.Float32BufferAttribute(out, 3));
-    return g;
-  };
   // the bouquet is a tall rounded dome, wider than the urn, like the photo
   const cy = rim + 0.42, rx = 0.66, ry = 0.62;
   const onDome = (inset = 1) => {
@@ -193,7 +199,6 @@ function flowers() {
       return { p: new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r), out: new THREE.Vector3(Math.cos(a) * r / rx, (y - cy) / ry, Math.sin(a) * r / rx).normalize() };
     }
   };
-  const face = out => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), out);
   const parts = [], leaves = [];
   const pinks = ['#e2508f', '#d63f7f', '#ee74a6', '#c92f6c', '#f08cb5'];
   for (let i = 0; i < 70; i++) { const { p, out } = onDome(); const s = 0.85 + random() * 0.4;
@@ -210,7 +215,6 @@ function flowers() {
     }
   }
   // leaves among the flowers, and strands of greenery trailing over the rim and down the urn
-  const leafShape = (() => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(0.05, 0.08, 0, 0.17); sh.quadraticCurveTo(-0.05, 0.08, 0, 0); return new THREE.ShapeGeometry(sh, 6); })();
   const leafAt = (p, dir, s) => leaves.push(leafShape.clone().applyMatrix4(new THREE.Matrix4().compose(p, face(dir), new THREE.Vector3(s, s, s))));
   for (let i = 0; i < 120; i++) { const { p, out } = onDome(0.96); leafAt(p, out.clone().add(new THREE.Vector3(random() - 0.5, 0, random() - 0.5)).normalize(), 1 + random() * 0.6); }
   for (let i = 0; i < 16; i++) {
@@ -232,6 +236,70 @@ function flowers() {
   return group;
 }
 
+// a bouquet in a glass bubble vase on a marble column, like the photo: white hydrangeas round the
+// rim, lavender carnations, white and blush roses and sprigs of purple statice above, the stems
+// showing through the glass and the water. About as tall as the urn on the other floors.
+function bouquet() {
+  const random = seeded(78), m = materials(), group = new THREE.Group();
+  const pedH = 1.0, vaseH = 0.78, rim = pedH + vaseH;
+  group.add(pedestal(pedH));
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.06, 40), m.marble); top.position.y = pedH + 0.03; group.add(top);
+  const base = pedH + 0.06;
+
+  // the vase, the water and the stems inside
+  const vase = new THREE.Mesh(lathe([[0, 0], [0.13, 0], [0.22, 0.04], [0.31, 0.16], [0.35, 0.31], [0.33, 0.46], [0.25, 0.6], [0.18, 0.68], [0.19, 0.74], [0.22, 0.78 - 0.06]], 48), m.glass);
+  vase.position.y = base; vase.renderOrder = 2;
+  const water = new THREE.Mesh(lathe([[0, 0], [0.12, 0], [0.21, 0.04], [0.3, 0.16], [0.335, 0.31], [0.32, 0.44], [0, 0.44]], 40), m.water);
+  water.position.y = base + 0.01; water.renderOrder = 1;
+  const stems = [];
+  for (let i = 0; i < 34; i++) {
+    const a = random() * Math.PI * 2, r0 = random() * 0.12, r1 = 0.1 + random() * 0.08;
+    const from = new THREE.Vector3(Math.cos(a) * r0, base + 0.03, Math.sin(a) * r0), to = new THREE.Vector3(Math.cos(a) * r1 * 1.6, rim + 0.1, Math.sin(a) * r1 * 1.6);
+    const mid = from.clone().add(to).multiplyScalar(0.5), len = from.distanceTo(to);
+    const stem = new THREE.CylinderGeometry(0.008, 0.01, len, 5);
+    stem.applyMatrix4(new THREE.Matrix4().compose(mid, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize()), new THREE.Vector3(1, 1, 1)));
+    stems.push(stem);
+  }
+  group.add(new THREE.Mesh(mergeGeometries(stems), m.stem), water, vase);
+
+  // the flowers on a rounded dome over the rim
+  const cy = rim + 0.36, rx = 0.62, ry = 0.55;
+  const onDome = (u0, u1, inset = 1) => {
+    const a = random() * Math.PI * 2, u = u0 + random() * (u1 - u0);
+    const y = cy + ry * u * inset, r = rx * Math.sqrt(Math.max(0, 1 - u * u)) * inset;
+    return { p: new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r), out: new THREE.Vector3(Math.cos(a) * r / rx, (y - cy) / ry, Math.sin(a) * r / rx).normalize() };
+  };
+  const carnation = ruffled(0.085, 2, 0.7, 0.3, 7), head = ruffled(0.12, 2, 0.9, 0.12, 5), rose = ruffled(0.09, 1, 0.85, 0.1, 4), bud = ruffled(0.022, 0, 1.3, 0.25, 3);
+  const parts = [], leaves = [];
+  const put = (geometry, color, p, out, s) => parts.push(coloured(geometry, color, new THREE.Matrix4().compose(p, face(out), new THREE.Vector3(s, s, s))));
+  for (let i = 0; i < 34; i++) { // white hydrangea heads round the lower half, over the rim
+    const { p, out } = onDome(-0.6, 0.3, 1.02), q = new THREE.Vector3();
+    put(head, random() < 0.5 ? '#eef0e6' : '#e4eadb', p, out, 1); // the head itself, covered in florets
+    for (let k = 0; k < 34; k++) {
+      q.set(random() - 0.5, random() - 0.5, random() - 0.5).normalize();
+      if (q.dot(out) < -0.2) q.negate();
+      const at = p.clone().addScaledVector(q, 0.12);
+      parts.push(coloured(floret, random() < 0.6 ? '#f7f8f2' : '#eaefe2', new THREE.Matrix4().compose(at, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), q), new THREE.Vector3(1.1, 1.1, 1.1))));
+    }
+  }
+  const lavender = ['#9b6fd9', '#a882e6', '#8a5cc9', '#b493ec'];
+  for (let i = 0; i < 130; i++) { const { p, out } = onDome(-0.05, 1, 1.03); put(carnation, lavender[Math.floor(random() * lavender.length)], p, out, 0.9 + random() * 0.35); }
+  for (let i = 0; i < 16; i++) { const { p, out } = onDome(0.1, 0.85, 1.07); put(rose, random() < 0.5 ? '#f8f4ec' : '#f3dcda', p, out, 1.1 + random() * 0.3); }
+  for (let i = 0; i < 16; i++) { // statice: sprigs of small dark purple buds sticking out
+    const { p, out } = onDome(0, 0.9, 1.05);
+    for (let k = 0; k < 9; k++) {
+      const at = p.clone().addScaledVector(out, 0.03 + k * 0.03).add(new THREE.Vector3((random() - 0.5) * 0.06, (random() - 0.5) * 0.05, (random() - 0.5) * 0.06));
+      put(bud, random() < 0.5 ? '#5b2d92' : '#6e3aa8', at, out, 1);
+    }
+  }
+  for (let i = 0; i < 70; i++) { const { p, out } = onDome(-0.4, 0.9, 0.97); leaves.push(leafShape.clone().applyMatrix4(new THREE.Matrix4().compose(p, face(out.clone().add(new THREE.Vector3(random() - 0.5, 0, random() - 0.5)).normalize()), new THREE.Vector3(0.9, 0.9, 0.9)))); }
+  const fill = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), m.foliage);
+  fill.scale.set(rx * 0.8, ry * 0.8, rx * 0.8); fill.position.y = cy;
+  fill.material = m.bouquetFill;
+  group.add(fill, new THREE.Mesh(mergeGeometries(parts), m.blooms), new THREE.Mesh(mergeGeometries(leaves), m.flowerLeaf));
+  return group;
+}
+
 // put every piece in its place; models appear as they finish loading
 export function decorate(list, envMap) {
   const jobs = [];
@@ -243,6 +311,7 @@ export function decorate(list, envMap) {
     if (type === 'monstera' || type === 'bird' || type === 'snake') { holder.add(plant(type)); continue; }
     if (type === 'settee') { holder.add(settee()); continue; }
     if (type === 'flowers') { holder.add(flowers()); continue; }
+    if (type === 'bouquet') { holder.add(bouquet()); continue; }
     let lift = 0;
     if (type === 'bust') { holder.add(pedestal(1.1)); lift = 1.1; }
     if (type === 'vase') { holder.add(pedestal(1.0)); lift = 1.0; }

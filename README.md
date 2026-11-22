@@ -5,11 +5,12 @@ A classical museum in the browser where you walk from room to room and see photo
 ## The building
 
 - **Entrance:** carved walnut front doors in a temple front of marble columns and a pediment, then five oval marble steps with a red carpet up to the central hall.
-- **Central hall:** red wallpaper, a ficus in each corner and, in the middle, a carved stone urn of pink peonies, white roses and hydrangeas on a pedestal. The floor is light oak.
-- **Two wings** off the hall, each with 4 rooms walked as a loop: blue rooms on the right, green on the left, each with one of three small wallpaper patterns (fleur-de-lis, diamonds, or lily and dot).
+- **Central hall:** red wallpaper, a ficus in each corner and, in the middle, a carved stone urn of pink peonies, white roses and hydrangeas on a pedestal. On floor 2 it is a bouquet of lavender carnations, white and blush roses, white hydrangeas and purple statice in a glass bubble vase on a marble column. The floor is light oak.
+- **Wall lights:** brass sconces with two pleated cream shades along the walls of the entrance and the halls, about 4.5–5.5 m apart, each with a warm glow on the wall.
+- **Two wings** off the hall, each with 4 rooms walked as a loop: blue rooms on the right, green on the left, each with one of three small wallpaper patterns (fleur-de-lis, diamonds, or lily and dot). Dark mahogany panelling runs along the lower walls, below the photos, and a crystal chandelier with candles hangs in the middle of each room.
 - **Doorways:** arched, in a moulded stone frame with a keystone.
-- **Ceilings** are 7.5 m high. The entrance, the central halls and the stair hall have an arched glass roof; the rooms have a moulded ceiling with a rosette.
-- **The sky** through the glass follows the visitor's clock: sun and drifting clouds by day, a warm sunset, and stars, the Milky Way and the moon (in its real phase) at night. `?time=21` shows a chosen hour.
+- **Ceilings** are 7.5 m high. The entrance, the central halls and the stair hall are roofed entirely in glass: one arched vault from wall to wall on iron ribs. The rooms have a moulded ceiling with a rosette.
+- **The sky** through the glass follows the visitor's clock: sun and drifting clouds by day, a warm sunset, and stars, the Milky Way and the moon (in its real phase) at night. Sunrise and sunset are the real ones for the date where the visitor is, worked out from the phone's time zone (no location permission), so in a German November it gets dark at about four. `?time=21` shows a chosen hour.
 - **Imperial staircase** at the far end of the hall: red-carpeted, with one central flight up to a landing, then two flights back to the next floor, which has the same plan. Behind the landing, a large arched window between two smaller ones looks out at the sky. Tap the stairs or the **↑ Floor** button to go up or down.
 
 **Live:** https://samn69.github.io/virtual-exhibition/
@@ -78,6 +79,7 @@ Plain files with no build step. [three.js](https://threejs.org) loads from a CDN
 - `js/building.js`: the floor plan, walls, oak floors, benches and where photos hang (for any number from 1 to 16)
 - `js/doorways.js`, `js/frontdoors.js`: the stone doorway frames and the front doors
 - `js/ceilings.js`: the arched glass roofs
+- `js/fittings.js`: the chandeliers, the wall lights and the wood panelling
 - `js/sky.js`: the sky drawn on the glass (sun, clouds, stars, moon)
 - `js/stairs.js`: the carpeted entrance steps and the imperial staircase
 - `js/shapes.js`, `js/textures.js`, `js/batch.js`: wall outlines; oak, wallpaper and marble drawn in code; merging parts so phones draw them fast

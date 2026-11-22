@@ -19,6 +19,7 @@ import { ceiling } from './ceilings.js';
 import { wallShape } from './shapes.js';
 import { doorway, doorwayHalfWidth } from './doorways.js';
 import { frontDoors } from './frontdoors.js';
+import { chandelier, sconce, wainscot } from './fittings.js';
 export * from './constants.js';
 
 const MARGIN = 0.45;           // how close a visitor gets to a wall
@@ -154,7 +155,7 @@ function roomSlots(space, frames, count) {
       frame, door, order: order(centre),
       spots: door ? [-1, 1].map(s => ({ u: s * (inner + outer) / 2, maxW: Math.min(2.4, outer - inner - 0.44) }))
         : [-1, 1].map(s => ({ u: s * L / 4, maxW: Math.min(2.6, 2 * (half - 0.82 - L / 4)) })),
-      single: door ? null : { u: 0, maxW: Math.min(3.6, L - 3.2), maxH: 2.3 },
+      single: door ? null : { u: 0, maxW: Math.min(3.6, L - 3.2), maxH: 1.85 }, // clear of the wood panelling
     };
   });
   const plain = walls.filter(w => !w.door).sort((a, b) => Math.abs(a.order - Math.PI) - Math.abs(b.order - Math.PI)); // the far wall first
@@ -197,6 +198,16 @@ function roomSlots(space, frames, count) {
   slots.sort((a, b) => a.order - b.order || a.row - b.row);
   return slots.slice(0, count);
 }
+
+// where the wall lights go in the entrance and the halls, along each wall (z on the east and west
+// walls, x on the north and south), clear of the doorways: about 4.5 to 5.5 m apart
+function wallLights(space, side) {
+  if (space.kind === 'hall') return side === 'E' || side === 'W' ? [-7.9, -2.35, 2.35, 7.9] : [-3.4, 3.4];
+  if (space.kind === 'entrance') return side === 'E' || side === 'W' ? [11.4, 15.1, 18.8] : [];
+  return [];
+}
+// put a fitting built in a wall's frame at a place along the wall and a height above the floor
+const onThisAt = (add, build, M, u, height) => build((geometry, material, local) => add(geometry, material, matrix({ x: u, y: height }).multiply(local)), M);
 
 export function buildMuseum(exhibition, renderer, { glass } = {}) {
   const floors = exhibition.floors;
@@ -269,10 +280,11 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     // blue rooms on the right, green on the left, each with one of the three patterns; red halls
     const paper = room ? wallpaper(WING_COLORS[space.wing], space.order % 3) : wallpaper(HALL_COLOR, 2);
 
-    // floor, and a ceiling: a skylight in the halls and the entrance, a plain moulded one in the rooms
+    // floor, and a ceiling: all glass in the halls and the entrance (the vault running towards the stairs), a moulded one in the rooms
     batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, OAK_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
-    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: space.kind !== 'room', roof: f < floors - 1 && space.kind === 'hall' ? roofs[f] : batch });
+    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: space.kind !== 'room', roof: f < floors - 1 && space.kind === 'hall' ? roofs[f] : batch, alongZ: space.kind === 'room' ? undefined : true });
 
+    if (space.kind === 'room') chandelier((geometry, material, local) => batch.add(geometry, material, matrix({ x: cx, y: y + height, z: cz }).multiply(local)), M);
     const frames = {};
     for (const side of ['N', 'S', 'E', 'W']) {
       const frame = frames[side] = wallFrame(space, side);
@@ -289,6 +301,11 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
         if (a - from > 0.05) batch.add(new THREE.BoxGeometry(a - from, 0.22, 0.05), M.skirting, onWall(frame, { x: (a + from) / 2, y: 0.11, z: -0.025 }));
         from = b;
       }
+      const onThis = (geometry, material, local) => batch.add(geometry, material, onWall(frame, {}).multiply(local));
+      // rooms: dark wood panelling below the photos
+      if (space.kind === 'room') wainscot(onThis, frame.length, doors.map(d => [d.u - doorwayHalfWidth(d.width) - 0.08, d.u + doorwayHalfWidth(d.width) + 0.08]));
+      // the entrance and the halls: brass wall lights, between the doorways
+      for (const at of wallLights(space, side)) onThisAt(onThis, sconce, M, frame.u(at), space.kind === 'entrance' ? 3.0 : 2.6);
 
       for (const d of doors) {
         // a classical stone frame round the doorway, and the name of where it leads
@@ -347,7 +364,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   for (let f = 0; f < floors; f++) {
     const cx = HALL_HALF - 1.0;
     for (const [x, z] of [[-cx, -8.2], [cx, -8.2], [-cx, 8.2], [cx, 8.2]]) place(f, 'ficus', x, z, 0, 0.75);
-    place(f, 'flowers', 0, 0, 0, 1.0);
+    place(f, f === 1 ? 'bouquet' : 'flowers', 0, 0, 0, 1.0); // floor 2 has a bouquet in a glass vase
   }
   // the entrance belongs to the ground floor's group, at street level: busts beside the steps,
   // and plants by the front doors

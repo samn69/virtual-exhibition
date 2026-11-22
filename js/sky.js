@@ -1,6 +1,6 @@
 // The sky seen through the glass roofs. It is drawn by the roof glass itself (the glass shows
 // the sky in the direction you look), so nothing behind the roof can show through. It follows the visitor's own clock:
-// by day a blue sky with the sun and slowly drifting clouds; at dusk and dawn warm colours;
+// by day (from the real sunrise to sunset where the visitor is) a blue sky with the sun and slowly drifting clouds; at dusk and dawn warm colours;
 // at night stars, a faint Milky Way and the moon in its real phase for the date.
 // The moon map is NASA's (CGI Moon Kit, public domain), in assets/sky.
 import * as THREE from 'three';
@@ -19,8 +19,9 @@ uniform float uDay, uDusk, uTime, uPhase, uMoonRadius;
 uniform sampler2D uMoonMap;
 varying vec3 vDir;
 
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+// hashes without sin(): sin of large numbers loses precision on many GPUs and makes regular patterns
+float hash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+float hash3(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
@@ -43,16 +44,17 @@ float clouds(vec2 p) {
 vec3 stars(vec3 d) {
   vec3 col = vec3(0.0);
   for (int layer = 0; layer < 2; layer++) {
-    float scale = layer == 0 ? 160.0 : 380.0;
+    float scale = layer == 0 ? 90.0 : 200.0;
     vec3 p = d * scale, cell = floor(p);
     float h = hash3(cell);
-    float threshold = layer == 0 ? 0.988 : 0.978;
+    float threshold = layer == 0 ? 0.985 : 0.988;
     if (h > threshold) {
-      vec3 star = cell + 0.25 + 0.5 * vec3(hash3(cell + 1.7), hash3(cell + 3.1), hash3(cell + 5.3));
+      // the star sits on the sky sphere (not anywhere in its cell, which drew arcs and dashes)
+      vec3 star = normalize(cell + 0.25 + 0.5 * vec3(hash3(cell + 1.7), hash3(cell + 3.1), hash3(cell + 5.3))) * scale;
       float dist = length(p - star), pixel = length(fwidth(p));
-      float size = pixel * (layer == 0 ? 1.6 : 1.1); // about a pixel or two across, at any screen size
-      float b = smoothstep(size, 0.0, dist) * (layer == 0 ? 2.4 : 1.0) * (0.25 + 0.75 * (h - threshold) / (1.0 - threshold));
-      b *= 0.75 + 0.25 * sin(uTime * (1.5 + 3.0 * h) + h * 40.0); // twinkle
+      float size = pixel * (layer == 0 ? 1.3 : 0.9); // about a pixel or two across, at any screen size
+      float b = smoothstep(size, 0.0, dist) * (layer == 0 ? 1.6 : 0.7) * (0.3 + 0.7 * (h - threshold) / (1.0 - threshold));
+      b *= 0.92 + 0.08 * sin(uTime * (0.4 + 0.8 * h) + h * 40.0); // a gentle, slow twinkle
       float t = hash3(cell + 9.1); // a little colour: bluish-white to warm
       col += b * mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.86, 0.7), t);
     }
@@ -135,6 +137,54 @@ export function moonPhase(date) {
 }
 
 const direction = (azimuth, elevation) => new THREE.Vector3(Math.sin(azimuth) * Math.cos(elevation), Math.sin(elevation), -Math.cos(azimuth) * Math.cos(elevation));
+const RAD = Math.PI / 180;
+
+// Roughly where the visitor is, from the phone's time zone alone (no location permission):
+// a city in that zone. Other zones use the middle of their hour, at a mid latitude.
+const PLACES = {
+  'Europe/Berlin': [52.5, 13.4], 'Europe/Vienna': [48.2, 16.4], 'Europe/Zurich': [47.4, 8.5], 'Europe/Paris': [48.9, 2.35],
+  'Europe/London': [51.5, -0.1], 'Europe/Dublin': [53.3, -6.3], 'Europe/Madrid': [40.4, -3.7], 'Europe/Lisbon': [38.7, -9.1],
+  'Europe/Rome': [41.9, 12.5], 'Europe/Amsterdam': [52.4, 4.9], 'Europe/Brussels': [50.8, 4.4], 'Europe/Copenhagen': [55.7, 12.6],
+  'Europe/Stockholm': [59.3, 18.1], 'Europe/Oslo': [59.9, 10.8], 'Europe/Helsinki': [60.2, 24.9], 'Europe/Warsaw': [52.2, 21.0],
+  'Europe/Prague': [50.1, 14.4], 'Europe/Budapest': [47.5, 19.0], 'Europe/Athens': [38.0, 23.7], 'Europe/Istanbul': [41.0, 29.0],
+  'Europe/Moscow': [55.8, 37.6], 'Europe/Kiev': [50.5, 30.5], 'Europe/Kyiv': [50.5, 30.5],
+  'Asia/Tehran': [35.7, 51.4], 'Asia/Dubai': [25.2, 55.3], 'Asia/Kolkata': [28.6, 77.2], 'Asia/Shanghai': [31.2, 121.5],
+  'Asia/Tokyo': [35.7, 139.7], 'Asia/Seoul': [37.6, 127.0], 'Asia/Singapore': [1.3, 103.8], 'Asia/Hong_Kong': [22.3, 114.2],
+  'Asia/Bangkok': [13.8, 100.5], 'Asia/Jakarta': [-6.2, 106.8], 'Asia/Karachi': [24.9, 67.0], 'Asia/Baghdad': [33.3, 44.4],
+  'Asia/Riyadh': [24.7, 46.7], 'Asia/Jerusalem': [31.8, 35.2], 'Asia/Kabul': [34.5, 69.2], 'Asia/Baku': [40.4, 49.9],
+  'Asia/Yerevan': [40.2, 44.5], 'Asia/Tbilisi': [41.7, 44.8],
+  'America/New_York': [40.7, -74.0], 'America/Chicago': [41.9, -87.6], 'America/Denver': [39.7, -105.0],
+  'America/Los_Angeles': [34.1, -118.2], 'America/Toronto': [43.7, -79.4], 'America/Vancouver': [49.3, -123.1],
+  'America/Mexico_City': [19.4, -99.1], 'America/Sao_Paulo': [-23.5, -46.6], 'America/Argentina/Buenos_Aires': [-34.6, -58.4],
+  'Africa/Cairo': [30.0, 31.2], 'Africa/Johannesburg': [-26.2, 28.0], 'Africa/Lagos': [6.5, 3.4], 'Africa/Nairobi': [-1.3, 36.8],
+  'Australia/Sydney': [-33.9, 151.2], 'Australia/Melbourne': [-37.8, 145.0], 'Australia/Perth': [-31.95, 115.9],
+  'Pacific/Auckland': [-36.8, 174.8],
+};
+const SOUTH = /^(Australia|Antarctica|Pacific\/(Auckland|Chatham|Fiji|Tongatapu)|America\/(Argentina|Sao_Paulo|Santiago|Montevideo|Asuncion|La_Paz|Lima)|Africa\/(Johannesburg|Maputo|Harare|Windhoek|Lusaka))/;
+function visitorPlace(date) {
+  let zone = '';
+  try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
+  if (PLACES[zone]) return PLACES[zone];
+  // the zone's standard time (the smaller of January's and July's offsets) gives the longitude
+  const y = date.getFullYear(), standard = Math.max(new Date(y, 0, 1).getTimezoneOffset(), new Date(y, 6, 1).getTimezoneOffset());
+  return [SOUTH.test(zone) ? -30 : 45, -standard / 4];
+}
+
+// where the sun is in the sky at a moment, seen from a place (NOAA's formulas, good to a minute or so)
+export function sunPosition(date, [lat, lon]) {
+  const days = date.getTime() / 86400000 - 10957.5; // since 2000-01-01 12:00 UTC
+  const g = (357.529 + 0.98560028 * days) * RAD; // the sun's mean anomaly
+  const q = 280.459 + 0.98564736 * days;
+  const L = (q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD; // its longitude on the ecliptic
+  const e = (23.439 - 0.00000036 * days) * RAD;
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = ((18.697374558 + 24.06570982441908 * days) % 24 + 24) % 24;
+  const hourAngle = (gmst * 15 + lon) * RAD - ra;
+  const phi = lat * RAD;
+  const elevation = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(hourAngle));
+  const azimuth = Math.atan2(-Math.sin(hourAngle), Math.tan(dec) * Math.cos(phi) - Math.sin(phi) * Math.cos(hourAngle)); // from north, towards east
+  return { elevation, azimuth };
+}
 
 export class Sky {
   constructor() {
@@ -153,20 +203,19 @@ export class Sky {
     this.setTime(new Date());
   }
 
-  // where the sun and moon are at this time of day (the sky turns with the visitor's clock)
-  setTime(date) {
-    const hour = this.fixedHour ?? date.getHours() + date.getMinutes() / 60;
-    const rise = 6.5, set = 19.0;
-    const t = (hour - rise) / (set - rise); // 0 at sunrise, 1 at sunset
-    const elevation = Math.sin(Math.PI * t) * THREE.MathUtils.degToRad(58) - (t < 0 || t > 1 ? 0.3 : 0);
-    const azimuth = Math.PI / 2 + Math.PI * THREE.MathUtils.clamp(t, -0.2, 1.2);
+  // where the sun and moon are now: the real sun for the date and the visitor's time zone, so it is
+  // dark from about four in a German November and light until half past nine in June
+  setTime(now) {
+    let date = now;
+    if (this.fixedHour !== null) { date = new Date(now); date.setHours(Math.floor(this.fixedHour), Math.round((this.fixedHour % 1) * 60), 0, 0); }
+    const place = this.place ||= visitorPlace(date);
+    const { elevation, azimuth } = sunPosition(date, place);
     this.uniforms.uSun.value.copy(direction(azimuth, elevation));
     const s = Math.sin(elevation);
     this.uniforms.uDay.value = THREE.MathUtils.smoothstep(s, -0.02, 0.22);
     this.uniforms.uDusk.value = Math.max(0, 1 - Math.abs(s - 0.02) / 0.16) * 0.85;
-    // the moon crosses the night sky high up, so it shows through the glass roofs
-    const night = ((hour - set + 24) % 24) / (24 - (set - rise)); // 0 at sunset, 1 at sunrise
-    this.uniforms.uMoon.value.copy(direction(Math.PI * (0.8 + 0.4 * THREE.MathUtils.clamp(night, 0, 1)), THREE.MathUtils.degToRad(60)));
+    // the moon crosses the night sky high up, opposite the sun, so it shows through the glass roofs
+    this.uniforms.uMoon.value.copy(direction(azimuth + Math.PI, THREE.MathUtils.degToRad(60)));
     let phase = moonPhase(date);
     if (Math.abs(phase - 0.5) > 0.38) phase = phase < 0.5 ? 0.12 : 0.88; // keep at least a thin crescent
     this.uniforms.uPhase.value = phase;
