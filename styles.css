@@ -57,9 +57,7 @@ dialog::backdrop { background: rgba(0,0,0,0.55); }
 dialog p { font-size: 15px; line-height: 1.45; margin: 8px 0; }
 .note { font-size: 13px !important; opacity: 0.75; margin-top: 4px !important; }
 .pick { display: block; text-align: center; margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--gold); color: #1d1712; cursor: pointer; font-size: 16px; }
-.pick.secondary { background: none; color: var(--gold); border: 1px solid var(--gold); }
 .pick input { display: none; }
-.link { background: none; border: none; color: var(--gold); text-decoration: underline; padding: 0; margin-top: 14px; }
 .error-text { color: #f0a0a0; }
 .rooms-list { display: grid; gap: 6px; }
 .rooms-list button {
@@ -70,20 +68,48 @@ dialog p { font-size: 15px; line-height: 1.45; margin: 8px 0; }
 .rooms-list .num { color: var(--gold); }
 .rooms-list .count { font-size: 13px; opacity: 0.65; }
 
-.viewer { position: fixed; inset: 0; background: rgba(8,6,5,0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 16px 20px; touch-action: pan-y; }
-.viewer[hidden] { display: none; }
-.viewer img { max-width: 100%; max-height: calc(100% - 110px); object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,0.7); user-select: none; -webkit-user-drag: none; }
-.viewer-text { text-align: center; max-width: 640px; }
-.viewer-title { font-size: 20px; color: var(--gold); }
-.viewer-date { font-style: italic; opacity: 0.8; margin-top: 2px; }
-.viewer-caption { margin-top: 6px; line-height: 1.45; }
-.viewer-place { font-size: 13px; opacity: 0.6; margin-top: 8px; }
-.viewer-nav, .viewer-close { position: absolute; background: var(--panel); border: 1px solid rgba(217,187,114,0.4); border-radius: 999px; }
-.viewer-nav { top: 50%; transform: translateY(-50%); width: 46px; height: 46px; font-size: 28px; line-height: 1; }
-.viewer-nav.prev { left: 12px; }
-.viewer-nav.next { right: 12px; }
-.viewer-close { top: max(12px, env(safe-area-inset-top)); right: 12px; width: 40px; height: 40px; }
-/* on phones the hint sits above the joystick */
+/* a close look at a photo: just buttons over the 3D view */
+.closeup { position: fixed; inset: 0; touch-action: none; }
+.closeup[hidden] { display: none; }
+.closeup-nav, .closeup-close { position: absolute; background: var(--panel); border: 1px solid rgba(217,187,114,0.4); border-radius: 999px; }
+.closeup-nav { top: 50%; transform: translateY(-50%); width: 46px; height: 46px; font-size: 28px; line-height: 1; }
+.closeup-nav.prev { left: max(12px, env(safe-area-inset-left)); }
+.closeup-nav.next { right: max(12px, env(safe-area-inset-right)); }
+.closeup-close { top: max(56px, calc(env(safe-area-inset-top) + 48px)); right: max(12px, env(safe-area-inset-right)); width: 40px; height: 40px; }
+.closeup-label { position: absolute; top: max(56px, calc(env(safe-area-inset-top) + 48px)); right: max(62px, calc(env(safe-area-inset-right) + 50px)); height: 40px; padding: 0 16px; background: var(--panel); border: 1px solid rgba(217,187,114,0.4); border-radius: 999px; font-size: 14px; }
+body.closeup-open .edit-bar, body.closeup-open .loading, body.closeup-open .joystick, body.closeup-open .stairs { display: none !important; }
+.closeup-tools { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: max-content; max-width: calc(100vw - 24px); }
+.closeup-tools[hidden] { display: none; }
+.closeup-tools button, .edit-bar button { background: var(--panel); border: 1px solid rgba(217,187,114,0.55); border-radius: 999px; padding: 8px 14px; font-size: 14px; }
+.closeup-tools button:disabled { opacity: 0.4; }
+.closeup-tools .danger { border-color: #c46a6a; color: #f3b3b3; }
+
+/* edit mode */
+.edit-bar { position: fixed; top: max(54px, calc(env(safe-area-inset-top) + 46px)); left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; width: max-content; max-width: calc(100vw - 24px); pointer-events: auto; }
+.edit-bar[hidden], .edit-bar button[hidden] { display: none; }
+.edit-bar #addPhotoButton { background: var(--gold); color: #1d1712; border-color: var(--gold); }
+.edit-note { font-size: 13px; background: var(--panel); padding: 6px 12px; border-radius: 999px; opacity: 0.9; }
+body.editing #editButton { background: var(--gold); color: #1d1712; }
+.photo-form { display: grid; gap: 10px; }
+.photo-form label { display: grid; gap: 4px; font-size: 13px; opacity: 0.95; }
+.photo-form input, .photo-form textarea, .photo-form select { font: inherit; font-size: 16px; color: inherit; background: rgba(255,255,255,0.06); border: 1px solid rgba(217,187,114,0.35); border-radius: 8px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
+.photo-form select option { color: #1d1712; }
+.photo-form textarea { resize: vertical; }
+.photo-form fieldset { border: 1px solid rgba(217,187,114,0.25); border-radius: 10px; padding: 8px 10px 10px; display: grid; gap: 8px; margin: 0; }
+.photo-form legend { font-size: 13px; color: var(--gold); padding: 0 4px; }
+.pair { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.photo-preview { width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; background: #000; }
+.photo-preview[hidden] { display: none; }
+.form-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.form-buttons button { border-radius: 999px; padding: 9px 18px; font-size: 15px; background: none; border: 1px solid rgba(217,187,114,0.55); color: inherit; }
+.form-buttons .primary { background: var(--gold); color: #1d1712; border-color: var(--gold); }
+#textFields { display: grid; gap: 10px; }
+.code { font-family: ui-monospace, Menlo, monospace; font-size: 14px !important; background: rgba(255,255,255,0.08); padding: 10px; border-radius: 8px; word-break: break-all; user-select: all; }
+.busy { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid rgba(217,187,114,0.5); border-radius: 14px; padding: 14px 20px; display: flex; gap: 12px; align-items: center; z-index: 10; }
+.busy[hidden] { display: none; }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 3px solid rgba(217,187,114,0.3); border-top-color: var(--gold); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 @media (pointer: coarse) { .hint { bottom: calc(max(26px, env(safe-area-inset-bottom)) + 132px); } }
 
 .stairs { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(26px, env(safe-area-inset-bottom)); display: flex; gap: 10px; }

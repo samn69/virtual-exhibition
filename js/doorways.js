@@ -19,14 +19,18 @@ const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 export const doorwayHalfWidth = width => width / 2 + 0.46;
 
 // add a doorway frame. add(geometry, material, localMatrix) places a piece; returns the height
-// for the sign above the keystone, and the top of the frame
-export function doorway(add, M, width, spring) {
+// for the sign above the keystone, and the top of the frame. A window gets a sill instead of plinths.
+export function doorway(add, M, width, spring, { window = false } = {}) {
   const w2 = width / 2, top = spring + w2;
   add(ring(w2, w2 + 0.14, spring, 0.07), M.stone, matrix({ z: -0.07 }));
   add(ring(w2 + 0.14, w2 + 0.3, spring, 0.12), M.stone, matrix({ z: -0.12 }));
   add(ring(w2 + 0.3, w2 + 0.36, spring, 0.16), M.stone, matrix({ z: -0.16 }));
+  if (window) {
+    add(box(width + 0.95, 0.14, 0.3), M.stone, matrix({ y: -0.07, z: -0.15 }));    // sill
+    add(box(width + 0.7, 0.1, 0.16), M.stone, matrix({ y: -0.19, z: -0.08 }));
+  }
   for (const s of [-1, 1]) {
-    add(box(0.5, 0.34, 0.22), M.stone, matrix({ x: s * (w2 + 0.2), y: 0.17, z: -0.11 }));       // plinth
+    if (!window) add(box(0.5, 0.34, 0.22), M.stone, matrix({ x: s * (w2 + 0.2), y: 0.17, z: -0.11 })); // plinth
     add(box(0.52, 0.16, 0.22), M.stone, matrix({ x: s * (w2 + 0.2), y: spring - 0.08, z: -0.11 })); // impost
   }
   // the keystone, wider at the top

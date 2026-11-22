@@ -1,6 +1,7 @@
 // The photos on the walls: frame, mount, picture light and plaque for each one.
 // Photos are loaded only for the room you're in and the rooms next to it, and shrunk to a
-// sensible size first, so 80+ photos don't run a phone out of memory.
+// sensible size first, so 80+ photos don't run a phone out of memory. A close look loads the
+// full-size copy of just that one photo.
 import * as THREE from 'three';
 import { canvasTexture, seeded } from './textures.js';
 import { PHOTO_Y } from './constants.js';
@@ -8,7 +9,21 @@ import { PHOTO_Y } from './constants.js';
 const SERIF = 'Georgia, "Times New Roman", serif';
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const MAX_SIDE = isTouch ? 1024 : 1600;
+const FULL_SIDE = isTouch ? 2560 : 4096;
 const CONCURRENT = 3;
+const PLAQUE = { w: 0.42, h: 0.56 };
+
+// downloaded photos, kept for a while so a gallery rebuilt after an edit doesn't fetch them again
+const blobs = new Map();
+async function download(url) {
+  if (blobs.has(url)) { const blob = blobs.get(url); blobs.delete(url); blobs.set(url, blob); return blob; }
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const blob = await response.blob();
+  blobs.set(url, blob);
+  while (blobs.size > 48) blobs.delete(blobs.keys().next().value);
+  return blob;
+}
 
 const frameMaterial = new THREE.MeshLambertMaterial({ color: '#a8823a', emissive: '#2a1c06' });
 const mountMaterial = new THREE.MeshLambertMaterial({ color: '#efe8d8' });
@@ -59,15 +74,9 @@ async function imageFromBlob(blob) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-async function photoCanvas(photo) {
-  let blob = photo.file;
-  if (!blob) {
-    const response = await fetch(photo.src, { mode: 'cors' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    blob = await response.blob();
-  }
-  const image = await imageFromBlob(blob);
-  const scale = Math.min(1, MAX_SIDE / Math.max(image.naturalWidth, image.naturalHeight));
+async function photoCanvas(url, maxSide = MAX_SIDE) {
+  const image = await imageFromBlob(await download(url));
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
   canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -75,28 +84,40 @@ async function photoCanvas(photo) {
   return canvas;
 }
 
+// the label beside a photo: number, title, year, description and place, then the camera details
 function plaqueTexture(number, photo) {
-  return canvasTexture(512, 320, (g, w, h) => {
+  return canvasTexture(630, 840, (g, w, h) => {
     g.fillStyle = '#f2ecdf'; g.fillRect(0, 0, w, h);
-    g.strokeStyle = '#b9ab8e'; g.lineWidth = 4; g.strokeRect(6, 6, w - 12, h - 12);
+    g.strokeStyle = '#b9ab8e'; g.lineWidth = 5; g.strokeRect(8, 8, w - 16, h - 16);
     g.fillStyle = '#2a241d'; g.textBaseline = 'top';
-    g.font = `28px ${SERIF}`; g.fillText(String(number), 30, 28);
-    let y = 74;
-    const wrap = (text, font, lineHeight, maxLines) => {
-      g.font = font;
-      const words = text.split(/\s+/); let line = '', lines = 0;
-      for (const word of words) {
+    const left = 40, width = w - 80;
+    let y = 36;
+    const wrap = (value, font, lineHeight, maxLines, color = '#2a241d') => {
+      if (!value) return;
+      g.font = font; g.fillStyle = color;
+      const lines = [];
+      let line = '';
+      for (const word of value.split(/\s+/)) {
         const test = line ? `${line} ${word}` : word;
-        if (g.measureText(test).width > w - 60 && line) {
-          g.fillText(line, 30, y); y += lineHeight; line = word;
-          if (++lines >= maxLines - 1) { line = `${line}…`; break; }
-        } else line = test;
+        if (g.measureText(test).width > width && line) { lines.push(line); line = word; } else line = test;
       }
-      if (line) { g.fillText(line, 30, y); y += lineHeight; }
+      if (line) lines.push(line);
+      if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = `${lines[maxLines - 1].replace(/\s*\S*$/, '')}…`; }
+      for (const l of lines) { if (y + lineHeight > h - 30) return; g.fillText(l, left, y); y += lineHeight; }
     };
-    wrap(photo.title || 'Untitled', `bold 34px ${SERIF}`, 42, 2);
-    if (photo.date) wrap(photo.date, `italic 28px ${SERIF}`, 36, 1);
-    if (photo.caption) { y += 6; wrap(photo.caption, `26px ${SERIF}`, 32, 3); }
+    wrap(String(number), `30px ${SERIF}`, 50, 1, '#7a6c55');
+    wrap(photo.title || 'Untitled', `bold 42px ${SERIF}`, 50, 3);
+    wrap(photo.year, `italic 34px ${SERIF}`, 44, 1, '#4a4034');
+    if (photo.description) { y += 12; wrap(photo.description, `31px ${SERIF}`, 39, 6); }
+    if (photo.place) { y += 8; wrap(photo.place, `italic 29px ${SERIF}`, 37, 2, '#4a4034'); }
+    const camera = [photo.camera, photo.lens, photo.settings].filter(Boolean);
+    if (camera.length) {
+      y += 18;
+      g.fillStyle = '#b9ab8e'; g.fillRect(left, y, 90, 3); y += 20;
+      wrap(photo.camera, `26px ${SERIF}`, 34, 2, '#5a4f40');
+      wrap(photo.lens, `26px ${SERIF}`, 34, 2, '#5a4f40');
+      wrap(photo.settings, `26px ${SERIF}`, 34, 2, '#5a4f40');
+    }
   });
 }
 
@@ -108,8 +129,9 @@ export class Artworks {
     this.running = 0;
     this.disposed = false;
     museum.rooms.forEach((room, r) => {
-      exhibition.rooms[r].photos.forEach((photo, index) => {
-        const slot = room.slots[index];
+      const photos = exhibition.rooms[r].photos, slots = room.slotsFor(photos.length);
+      photos.forEach((photo, index) => {
+        const slot = slots[index];
         if (slot) this.items.push({ photo, slot, room: r, floor: room.floor, index, number: index + 1, parent: room.group, state: 'idle', group: null, mesh: null, texture: null, canvas: null });
       });
     });
@@ -117,6 +139,7 @@ export class Artworks {
 
   get meshes() { return this.items.filter(item => item.group && item.parent.visible).flatMap(item => item.hits); }
   inRoom(room) { return this.items.filter(item => item.room === room); }
+  find(room, index) { return this.items.find(item => item.room === room && item.index === index); }
 
   // load the photos of rooms within `radius` doorways of the visitor; free the ones far away
   focus(distances, radius) {
@@ -147,9 +170,9 @@ export class Artworks {
     item.state = 'loading';
     let canvas, failed = false;
     try {
-      canvas = item.photo.src || item.photo.file ? await photoCanvas(item.photo) : placeholderCanvas(item.room * 20 + item.index, item.photo.aspect || [1.5, 0.75, 1.33, 1, 0.8][item.index % 5]);
+      canvas = item.photo.url ? await photoCanvas(item.photo.url) : placeholderCanvas(item.room * 20 + item.index, item.photo.aspect || [1.5, 0.75, 1.33, 1, 0.8][item.index % 5]);
     } catch (error) {
-      console.warn('Could not load photo', item.photo.src || item.photo.file?.name, error);
+      console.warn('Could not load photo', item.photo.url, error);
       canvas = placeholderCanvas(item.index, 1.33, "Couldn't load this photo");
       failed = true;
     }
@@ -161,19 +184,47 @@ export class Artworks {
     texture.anisotropy = 4;
     if (!item.group) this.build(item, canvas.width / canvas.height);
     item.texture = texture;
+    item.state = 'loaded';
+    if (item.fullTexture) return; // a close look is already showing the full-size copy
     item.mesh.material.map = texture;
     item.mesh.material.color.set('#ffffff');
     item.mesh.material.needsUpdate = true;
-    item.state = 'loaded';
   }
 
   unload(item) {
+    this.releaseFull(item);
     item.texture?.dispose();
     item.texture = null; item.canvas = null;
     item.mesh.material.map = null;
     item.mesh.material.color.set('#d9d2c3');
     item.mesh.material.needsUpdate = true;
     item.state = 'idle';
+  }
+
+  // the full-size copy, for a close look at one photo
+  async loadFull(item) {
+    if (!item.photo.fullUrl || item.failed || item.fullTexture || item.fullLoading) return;
+    item.fullLoading = true;
+    try {
+      const canvas = await photoCanvas(item.photo.fullUrl, FULL_SIDE);
+      if (this.disposed || !item.fullLoading || !item.group) return;
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 8;
+      item.fullTexture = texture;
+      item.mesh.material.map = texture;
+      item.mesh.material.color.set('#ffffff');
+      item.mesh.material.needsUpdate = true;
+    } catch (error) {
+      console.warn('Could not load the full-size photo', error);
+    } finally { item.fullLoading = false; }
+  }
+  releaseFull(item) {
+    item.fullLoading = false;
+    if (!item.fullTexture) return;
+    item.fullTexture.dispose();
+    item.fullTexture = null;
+    if (item.mesh) { item.mesh.material.map = item.texture; item.mesh.material.needsUpdate = true; }
   }
 
   build(item, aspect) {
@@ -203,18 +254,38 @@ export class Artworks {
     arm.position.set(0, top + 0.2, 0.12);
 
     // plaque beside the frame, at reading height
-    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.25), new THREE.MeshLambertMaterial({ map: plaqueTexture(item.number, item.photo) }));
-    plaque.position.set(slot.plaqueSide * (w / 2 + matte + border + 0.34), 1.38 - PHOTO_Y, 0.012);
+    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(PLAQUE.w, PLAQUE.h), new THREE.MeshLambertMaterial({ map: plaqueTexture(item.number, item.photo) }));
+    const outerW = w + 2 * (matte + border), outerH = h + 2 * (matte + border);
+    const px = slot.plaqueSide * (outerW / 2 + 0.1 + PLAQUE.w / 2), py = slot.plaqueY ?? 1.38 - PHOTO_Y;
+    plaque.position.set(px, py, 0.012);
 
-    group.add(light, frame, mount, photo, lamp, arm, plaque);
+    group.add(light, frame, mount, photo, plaque);
+    if (slot.lamp !== false) group.add(lamp, arm); // not under another photo
     for (const mesh of [frame, mount, photo, plaque]) mesh.userData = { kind: 'photo', item };
     item.parent.add(group);
-    Object.assign(item, { group, mesh: photo, hits: [frame, mount, photo, plaque] });
+    // what a close look takes in: the frame, its light and the plaque (in the group's own frame)
+    const bounds = {
+      x0: Math.min(-outerW / 2, px - PLAQUE.w / 2), x1: Math.max(outerW / 2, px + PLAQUE.w / 2),
+      y0: Math.min(-outerH / 2, py - PLAQUE.h / 2), y1: Math.max(outerH / 2, py + PLAQUE.h / 2) + 0.12,
+    };
+    Object.assign(item, { group, mesh: photo, plaque, hits: [frame, mount, photo, plaque], bounds });
   }
 
+  // take every photo off the walls (when the gallery changes)
   dispose() {
     this.disposed = true;
     this.queue = [];
-    for (const item of this.items) item.texture?.dispose();
+    for (const item of this.items) {
+      item.texture?.dispose(); item.fullTexture?.dispose();
+      if (!item.group) continue;
+      item.group.removeFromParent();
+      item.group.traverse(object => {
+        object.geometry?.dispose();
+        if (object.material && object.material !== frameMaterial && object.material !== mountMaterial && object.material !== brassMaterial) {
+          if (object.material.map && object.material.map !== glowTexture) object.material.map.dispose();
+          object.material.dispose();
+        }
+      });
+    }
   }
 }

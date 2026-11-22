@@ -10,7 +10,7 @@ A classical museum in the browser where you walk from room to room and see photo
 - **Doorways:** arched, in a moulded stone frame with a keystone.
 - **Ceilings** are 7.5 m high. The entrance, the central halls and the stair hall have an arched glass roof; the rooms have a moulded ceiling with a rosette.
 - **The sky** through the glass follows the visitor's clock: sun and drifting clouds by day, a warm sunset, and stars, the Milky Way and the moon (in its real phase) at night. `?time=21` shows a chosen hour.
-- **Imperial staircase** at the far end of the hall: red-carpeted, with one central flight up to a landing, then two flights back to the next floor, which has the same plan. Tap the stairs or the **↑ Floor** button to go up or down.
+- **Imperial staircase** at the far end of the hall: red-carpeted, with one central flight up to a landing, then two flights back to the next floor, which has the same plan. Behind the landing, a large arched window between two smaller ones looks out at the sky. Tap the stairs or the **↑ Floor** button to go up or down.
 
 **Live:** https://samn69.github.io/virtual-exhibition/
 
@@ -20,13 +20,29 @@ A classical museum in the browser where you walk from room to room and see photo
 |---|---|---|
 | Look around | Drag | Drag with the mouse |
 | Walk | Tap the floor, or use the joystick | Click the floor, or use the arrow keys / WASD |
-| See a photo up close | Tap it (swipe for the next one) | Click it (← → for the next one) |
+| See a photo up close | Tap it: the view glides up to the frame. **Label** (or tapping the plaque) reads its plaque; swipe for the next photo | Click it: the view glides up to the frame. **Label** (or clicking the plaque) reads its plaque; ← → for the next photo |
 | Change floor | Tap the stairs, or **↑ / ↓ Floor** | Click the stairs, or **↑ / ↓ Floor** |
 | Jump to a room | **Rooms** | **Rooms** |
 
-**Your photos** puts pictures from your device on the walls to try it out. They stay on the device and nothing is uploaded. On a computer, **Choose a folder** turns each subfolder into a room.
+## Adding and editing photos
 
-## What's on show: `exhibition.json`
+Open **https://samn69.github.io/virtual-exhibition/?edit**, tap **Edit** and sign in with Google. After that, the **Edit** button stays on that device.
+
+- **Add a photo:** walk into a room and tap **＋ Add photo**. The form fills in the camera, lens, settings and year from the photo; change anything, add a description and place, and save.
+- **Change a photo:** tap it, then **Edit details**, **← Move / Move →** (its place along the walls) or **Remove**. Changing its room in the form moves it to another room.
+- **Rename a room:** stand in it and tap **Rename room**. In the entrance or a hall, **Exhibition title** changes the title over the entrance.
+
+A room holds 1 to 16 photos and arranges itself: one large photo in the middle of a wall when there are few, two per wall, then beside the doorways, and in two rows past 8.
+
+### Where everything is kept
+
+In the owner's Google Drive, in a folder called **Virtual Exhibition**: two copies of each photo (one sized for the wall, one up to 4096 px for close looks) and `virtual-exhibition.json`, which lists the rooms and photos. The photos are re-saved as JPEG, which leaves out the location a camera stores in a file; the files are shared "anyone with the link can view" so visitors can see them. Removed photos go to the Drive bin.
+
+The gallery only has access to files it created itself (Google's `drive.file` permission), never the rest of the Drive. `js/config.js` holds the Google sign-in ID, the API key (restricted to this site and the Drive API) and the id of `virtual-exhibition.json`. Until that id is set, visitors see the sample exhibition below.
+
+`?mockdrive` (with `?edit`) tries the editing without Google, keeping everything in the page until it's reloaded.
+
+## The sample exhibition: `exhibition.json`
 
 ```json
 {
@@ -37,7 +53,7 @@ A classical museum in the browser where you walk from room to room and see photo
     {
       "name": "Room I · Landscapes",
       "photos": [
-        { "src": "https://…/photo.jpg", "title": "Lake Como", "date": "May 2025", "caption": "Early morning from Varenna" }
+        { "src": "https://…/photo.jpg", "title": "Lake Como", "year": "2025", "description": "Early morning from Varenna", "place": "Varenna, Italy", "camera": "Canon EOS R6", "lens": "RF50mm F1.8", "settings": "50 mm · f/2.8 · 1/250 s · ISO 200" }
       ]
     }
   ]
@@ -45,7 +61,7 @@ A classical museum in the browser where you walk from room to room and see photo
 ```
 
 - `floors` sets the number of floors (1 to 8). Each floor has 8 rooms. If there are more rooms than the floors hold, floors are added. Rooms without photos stay empty, ready to be filled.
-- A room holds up to 8 photos. If a room has more, the extra photos continue in the next room.
+- A room holds up to 16 photos. If a room has more, the extra photos continue in the next room.
 - A photo without `src` shows a sample picture.
 - Photos aren't kept in this repo. `src` points to wherever they're stored, and that server has to allow cross-origin (CORS) access.
 - `?exhibition=<url>` opens a different exhibition file.
@@ -55,7 +71,7 @@ A classical museum in the browser where you walk from room to room and see photo
 Plain files with no build step. [three.js](https://threejs.org) loads from a CDN, and GitHub Pages serves the repo.
 
 - `js/constants.js`: sizes shared by everything (room height, floor height, door size…)
-- `js/building.js`: the floor plan, walls, oak floors, benches and where photos hang
+- `js/building.js`: the floor plan, walls, oak floors, benches and where photos hang (for any number from 1 to 16)
 - `js/doorways.js`, `js/frontdoors.js`: the stone doorway frames and the front doors
 - `js/ceilings.js`: the arched glass roofs
 - `js/sky.js`: the sky drawn on the glass (sun, clouds, stars, moon)
@@ -64,8 +80,11 @@ Plain files with no build step. [three.js](https://threejs.org) loads from a CDN
 - `js/decor.js`: sculptures, plants, pedestals and the hall settee
 - `js/artworks.js`: frames, plaques and picture lights. It loads photos only for the room you're in and the ones next to it, shrunk to fit a phone's memory
 - `js/controls.js`: walking, looking around, collisions, following steps up and down, and gliding up and down the stairs
-- `js/exhibition.js`: reads `exhibition.json`, or photos picked on the device
-- `js/main.js`: puts it together, plus the menus and the photo viewer
+- `js/exhibition.js`: reads the exhibition file (from Drive, or `exhibition.json`)
+- `js/drive.js`, `js/config.js`: Google sign-in and Drive storage
+- `js/editor.js`: edit mode (adding photos and reading their camera details, the forms, renaming)
+- `js/closeup.js`: gliding up to a photo and reading its plaque
+- `js/main.js`: puts it together, plus the menus
 
 `?debug` puts the walker and photos on `window.app` for testing from the browser console.
 
@@ -74,3 +93,5 @@ Plain files with no build step. [three.js](https://threejs.org) loads from a CDN
 The marble bust, horse statue, ficus, alocasia and ceramic vase are [Poly Haven](https://polyhaven.com) models, released under CC0 (free for any use). They are in `assets/models`. The monstera, snake plant, bird of paradise and the flower urn are drawn in code.
 
 The moon's surface is from NASA's [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (Scientific Visualization Studio), which is in the public domain. It is in `assets/sky`.
+
+Camera details are read with [exifr](https://github.com/MikeKovarik/exifr) (MIT licence), loaded from a CDN only in edit mode.

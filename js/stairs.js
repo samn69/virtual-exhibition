@@ -174,7 +174,26 @@ export function buildStairs({ floors: F, root, M, raycastTargets, entranceGroup,
   wall(matrix({ y: BASE, z: ZS }), 2 * W + 0.4, Array.from({ length: F }, (_, f) => ({ u: 0, width: DOOR.width, spring: DOOR.spring, bottom: f * FLOOR_H })));
   wall(matrix({ x: W, y: BASE, z: (ZS + zWall) / 2, ry: Math.PI / 2 }), ZS - zWall);
   wall(matrix({ x: -W, y: BASE, z: (ZS + zWall) / 2, ry: -Math.PI / 2 }), ZS - zWall);
-  wall(matrix({ y: BASE, z: z0, ry: Math.PI }), 2 * W + 0.4);
+  // the far wall, behind the landing: a large arched window with a smaller one each side
+  const windows = F > 1 ? [{ u: 0, width: 2.8, spring: 4.2 }, { u: -3.75, width: 1.5, spring: 3.0 }, { u: 3.75, width: 1.5, spring: 3.0 }]
+    .map(w => ({ ...w, bottom: FLOOR_H / 2 + 2.35 })) : []; // the sill clears the statue on the landing
+  wall(matrix({ y: BASE, z: z0, ry: Math.PI }), 2 * W + 0.4, windows);
+  for (const w of windows) {
+    const at = matrix({ x: w.u, y: BASE + w.bottom, z: z0, ry: Math.PI });
+    const add = (geometry, material, local) => b.batch.add(geometry, material, at.clone().multiply(local));
+    doorway(add, M, w.width, w.spring, { window: true });
+    // the glass shows the sky; white glazing bars, with a fan of them in the arch
+    const r = w.width / 2, glass = new THREE.Shape();
+    glass.moveTo(-r, 0); glass.lineTo(r, 0); glass.lineTo(r, w.spring); glass.absarc(0, w.spring, r, 0, Math.PI, false); glass.closePath();
+    add(new THREE.ShapeGeometry(glass, 24), M.laylight, matrix({ z: 0.1 }));
+    const bar = (length, x, y, rz = 0) => add(new THREE.BoxGeometry(0.045, length, 0.06), M.stone, matrix({ x, y, z: 0.06, rz }));
+    const columns = Math.max(2, Math.round(w.width / 0.5));
+    for (let i = 1; i < columns; i++) { const x = -r + (w.width * i) / columns; bar(w.spring, x, w.spring / 2); }
+    const rows = Math.max(3, Math.round(w.spring / 0.6));
+    for (let j = 1; j <= rows; j++) bar(w.width, 0, (w.spring * j) / rows, Math.PI / 2);
+    for (let i = 1; i < 6; i++) { const a = (i / 6) * Math.PI; bar(r, Math.cos(a) * r / 2, w.spring + Math.sin(a) * r / 2, a - Math.PI / 2); }
+    add(new THREE.TorusGeometry(r * 0.45, 0.025, 6, 24, Math.PI), M.stone, matrix({ y: w.spring, z: 0.06 }));
+  }
   // floor, ceiling and skylight, and a stone band at each floor
   const floor = new THREE.PlaneGeometry(2 * W, ZS - zWall); floor.rotateX(-Math.PI / 2);
   b.batch.add(floor, M.marble, matrix({ y: BASE, z: (ZS + zWall) / 2 }), { kind: 'floor', floor: 0 });
@@ -184,7 +203,9 @@ export function buildStairs({ floors: F, root, M, raycastTargets, entranceGroup,
     const at = matrix({ y, z: ZS }); // the doorway, seen from the stair hall (its room side is -z)
     const info = doorway((geometry, material, local) => b.batch.add(geometry, material, at.clone().multiply(local)), M, DOOR.width, DOOR.spring);
     group.add(nameplate(`Floor ${f + 1}`, info, at));
-    for (const [x, z, len, ry] of [[0, ZS - 0.07, 2 * W, 0], [W - 0.07, (ZS + zWall) / 2, ZS - zWall, Math.PI / 2], [-W + 0.07, (ZS + zWall) / 2, ZS - zWall, Math.PI / 2], [0, z0 + 0.07, 2 * W, 0]]) {
+    const bands = [[0, ZS - 0.07, 2 * W, 0], [W - 0.07, (ZS + zWall) / 2, ZS - zWall, Math.PI / 2], [-W + 0.07, (ZS + zWall) / 2, ZS - zWall, Math.PI / 2]];
+    if (!windows.length || !f) bands.push([0, z0 + 0.07, 2 * W, 0]); // not across the windows
+    for (const [x, z, len, ry] of bands) {
       b.box(x, (f ? y - 0.75 : topY - 0.14), z, len, f ? 0.3 : 0.28, 0.14, M.stone, undefined, ry);
     }
   }

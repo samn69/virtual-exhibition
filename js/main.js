@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildMuseum } from './building.js';
-import { Artworks, placeholderCanvas } from './artworks.js';
+import { Artworks } from './artworks.js';
 import { Walker } from './controls.js';
 import { decorate } from './decor.js';
 import { Sky } from './sky.js';
-import { loadExhibition, exhibitionFromFiles, normalizeExhibition } from './exhibition.js';
+import { loadExhibition, normalizeExhibition } from './exhibition.js';
+import { manifestId, readPublicManifest } from './drive.js';
+import { Closeup } from './closeup.js';
+import { Editor } from './editor.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('scene');
@@ -39,7 +42,6 @@ walker.attachJoystick($('joystick'));
 if (isTouch) $('joystick').hidden = false;
 
 let museum = null, artworks = null, exhibition = null, currentZone = null, shownFloors = '';
-const localUrls = [];
 
 function resize() {
   const { clientWidth: w, clientHeight: h } = canvas;
@@ -59,20 +61,36 @@ function disposeWorld() {
   });
   museum.dispose();
   scene.remove(museum.root);
-  localUrls.splice(0).forEach(url => URL.revokeObjectURL(url));
 }
 
-function show(newExhibition) {
+// build the gallery for an exhibition; keepPlace leaves the visitor where they are
+function show(newExhibition, { keepPlace = false } = {}) {
+  const place = keepPlace && museum ? { floor: walker.floor, x: walker.x, z: walker.z, yaw: walker.yaw, pitch: walker.pitch } : null;
+  closeup.close({ jump: true });
   if (museum) disposeWorld();
   exhibition = newExhibition;
   museum = buildMuseum(exhibition, renderer, { glass: sky.material });
   scene.add(museum.root);
   decorate(museum.decor, reflections);
-  artworks = new Artworks(museum, exhibition, { onBusy: count => { $('loading').hidden = count === 0; } });
+  hangPhotos();
   walker.museum = museum;
-  walker.place(museum.start);
+  walker.place(place || museum.start);
+  if (place) { walker.pitch = place.pitch; walker.apply(); }
   currentZone = null; shownFloors = '';
   document.title = `${exhibition.title} · Virtual Exhibition`;
+  fillRoomsMenu();
+}
+function hangPhotos() {
+  artworks = new Artworks(museum, exhibition, { onBusy: count => { $('loading').hidden = count === 0; } });
+}
+// after an edit: only the photos changed (quick), or names too (the whole building is rebuilt)
+function apply(newExhibition, { rebuild = 'photos' } = {}) {
+  if (rebuild === 'all' || !museum) { show(newExhibition, { keepPlace: true }); return; }
+  closeup.close({ jump: true });
+  artworks.dispose();
+  exhibition = newExhibition;
+  hangPhotos();
+  currentZone = null; // load the photos round the visitor again
   fillRoomsMenu();
 }
 
@@ -123,6 +141,7 @@ function updateZone() {
   // rooms you can walk to through one doorway; from the entrance and stairs, two
   artworks.focus(museum.distancesFrom(zone), zone.startsWith('r') || zone.startsWith('h') ? 1 : 2);
   updateStairButtons();
+  editor.update();
 }
 
 // ── the spiral stairs ──
@@ -159,7 +178,7 @@ function tap(x, y) {
   const hit = raycaster.intersectObjects(targets, false)[0];
   if (!hit) return;
   const { kind, floor } = hit.object.userData;
-  if (kind === 'photo') openViewer(hit.object.userData.item);
+  if (kind === 'photo') { closeup.show(hit.object.userData.item); hideHint(); }
   else if (kind === 'stairs') climb(floor === walker.floor ? 1 : -1);
   else if (kind === 'floor' && floor === walker.floor) {
     walker.walkTo(hit.point.x, hit.point.z);
@@ -169,68 +188,28 @@ function tap(x, y) {
   }
 }
 
-// ── full-screen photo viewer ──
-let viewing = null;
-function photoUrl(item) {
-  if (item.photo.file) { const url = URL.createObjectURL(item.photo.file); localUrls.push(url); return url; }
-  if (item.photo.src && !item.failed) return item.photo.src;
-  return (item.canvas || placeholderCanvas(item.room * 20 + item.index, item.photo.aspect || 1.33)).toDataURL('image/jpeg', 0.9);
-}
-function openViewer(item) {
-  viewing = item;
-  const list = artworks.inRoom(item.room);
-  $('viewerImage').src = photoUrl(item);
-  $('viewerImage').alt = item.photo.title || 'Photo';
-  $('viewerTitle').textContent = item.photo.title || 'Untitled';
-  $('viewerDate').textContent = item.photo.date;
-  $('viewerCaption').textContent = item.photo.caption;
-  $('viewerPlace').textContent = `${exhibition.rooms[item.room].name} · ${list.indexOf(item) + 1} of ${list.length}`;
-  $('viewer').hidden = false;
-  walker.enabled = false;
-}
-function stepViewer(step) {
-  const list = artworks.inRoom(viewing.room);
-  openViewer(list[(list.indexOf(viewing) + step + list.length) % list.length]);
-}
-function closeViewer() { $('viewer').hidden = true; $('viewerImage').removeAttribute('src'); viewing = null; walker.enabled = true; }
-$('viewerClose').onclick = closeViewer;
-$('viewerPrev').onclick = () => stepViewer(-1);
-$('viewerNext').onclick = () => stepViewer(1);
-$('viewer').addEventListener('click', e => { if (e.target === $('viewer')) closeViewer(); });
-addEventListener('keydown', e => {
-  if (!viewing) return;
-  if (e.key === 'Escape') closeViewer();
-  else if (e.key === 'ArrowLeft') stepViewer(-1);
-  else if (e.key === 'ArrowRight') stepViewer(1);
-});
-// swipe left or right in the viewer for the next photo
-let swipeStart = null;
-$('viewer').addEventListener('pointerdown', e => { swipeStart = e.clientX; });
-$('viewer').addEventListener('pointerup', e => {
-  if (swipeStart !== null && Math.abs(e.clientX - swipeStart) > 60) stepViewer(e.clientX < swipeStart ? 1 : -1);
-  swipeStart = null;
+// ── a close look at a photo, and edit mode ──
+const closeup = new Closeup({ camera, walker, overlay: $('closeup'), artworks: () => artworks, onChange: item => {
+  document.body.classList.toggle('closeup-open', !!item);
+  $('closeupLabel').textContent = closeup.reading ? 'Photo' : 'Label';
+  $('closeupLeft').disabled = !item || item.index === 0;
+  $('closeupRight').disabled = !item || item.index === exhibition.rooms[item.room].photos.length - 1;
+} });
+$('closeupClose').onclick = () => closeup.close();
+$('closeupLabel').onclick = () => closeup.toggleLabel();
+$('closeupPrev').onclick = () => closeup.step(-1);
+$('closeupNext').onclick = () => closeup.step(1);
+const editor = new Editor({
+  exhibition: () => exhibition, zone: () => currentZone, floors: () => museum.floors,
+  normalize: normalizeExhibition, apply, closeup, findPhoto: (room, index) => artworks.find(room, index),
 });
 
 // ── menus ──
 $('roomsButton').onclick = () => $('roomsDialog').showModal();
-$('photosButton').onclick = () => $('photosDialog').showModal();
 for (const dialog of document.querySelectorAll('dialog')) {
-  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); }); // tap outside closes
-  dialog.querySelector('.close')?.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', e => { if (e.target === dialog && !dialog.classList.contains('form')) dialog.close(); }); // tap outside closes
+  dialog.querySelectorAll('.close, .cancel').forEach(button => button.addEventListener('click', () => dialog.close()));
 }
-for (const input of [$('pickPhotos'), $('pickFolder')]) {
-  input.addEventListener('change', () => {
-    const picked = exhibitionFromFiles(input.files);
-    input.value = '';
-    if (!picked) { $('photosError').textContent = 'No photos found there. Pick JPEG, PNG or WebP pictures.'; $('photosError').hidden = false; return; }
-    $('photosError').hidden = true;
-    $('photosDialog').close();
-    $('backToSample').hidden = false;
-    show(picked);
-  });
-}
-if (!('webkitdirectory' in document.createElement('input')) || isTouch) $('pickFolderRow').hidden = true;
-$('backToSample').onclick = async () => { $('photosDialog').close(); $('backToSample').hidden = true; show(await loadExhibition(source)); };
 
 // ── first-visit hint ──
 $('hint').textContent = isTouch
@@ -240,9 +219,21 @@ let hintTimer = setTimeout(hideHint, 12000);
 function hideHint() { clearTimeout(hintTimer); $('hint').classList.add('gone'); }
 
 // ── start ──
-const source = new URLSearchParams(location.search).get('exhibition') || 'exhibition.json';
+// the exhibition: from Google Drive once it's set up there, otherwise exhibition.json
+const params = new URLSearchParams(location.search);
+async function firstExhibition() {
+  if (params.has('exhibition')) return loadExhibition(params.get('exhibition'));
+  const id = manifestId();
+  if (id) {
+    try { return normalizeExhibition(await readPublicManifest(id)); } catch (error) {
+      $('error').textContent = `${error.message}. Showing the sample gallery.`;
+      $('error').hidden = false;
+    }
+  }
+  return loadExhibition('exhibition.json');
+}
 try {
-  show(await loadExhibition(source));
+  show(await firstExhibition());
 } catch (error) {
   $('error').textContent = `${error.message}. Showing an empty gallery.`;
   $('error').hidden = false;
@@ -253,6 +244,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = clock.getDelta();
   walker.update(dt);
+  closeup.update(dt);
   sky.update(clock.elapsedTime);
   updateZone();
   museum.updateRoofs(camera.position.y);
@@ -261,4 +253,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // for testing: ?debug gives the console access to the walker and the photos
-if (new URLSearchParams(location.search).has('debug')) window.app = { scene, walker, get museum() { return museum; }, get artworks() { return artworks; }, show, openViewer, climb };
+if (new URLSearchParams(location.search).has('debug')) window.app = { scene, walker, get museum() { return museum; }, get artworks() { return artworks; }, show, apply, closeup, editor, climb };

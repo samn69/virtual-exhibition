@@ -132,22 +132,70 @@ export function nameplate(label, info, at) {
   return sign;
 }
 
-// where photos hang in a wing room: two per wall, clear of the doorways, with room for the plaque
-function roomSlots(space, frames) {
-  const plain = [], withDoor = [];
-  for (const side of ['N', 'S', 'E', 'W']) {
-    const frame = frames[side], L = frame.length, door = space.doors.some(d => d.side === side);
-    // beside a doorway: between its stone frame and the corner, leaving room for the label on the outer side
-    const half = L / 2, inner = doorwayHalfWidth(DOOR.width) + 0.2, outer = half - 0.35 - 0.6;
-    const positions = door ? [-1, 1].map(s => s * (inner + outer) / 2) : [-L / 4, L / 4];
-    const maxW = door ? Math.min(2.4, outer - inner - 0.44) : Math.min(2.6, 2 * (half - 0.82 - L / 4));
-    for (const u of positions) {
-      const m = onWall(frame, { x: u, y: PHOTO_Y, z: 0 });
-      const position = new THREE.Vector3().setFromMatrixPosition(m);
-      (door ? withDoor : plain).push({ position, rotationY: frame.ry + Math.PI, maxW, maxH: 1.85, plaqueSide: -Math.sign(u) || 1 });
+// Where photos hang in a wing room, for however many it has (up to 16). The walls without a
+// doorway come first: one large photo in the middle of each, then two per wall; then two beside
+// each doorway; past 8, photos hang in two rows (a "salon" hang). They're numbered in the order a
+// visitor coming in meets them: left wall, far wall, right wall.
+const ROW = { y: PHOTO_Y, maxH: 1.85, plaqueY: 1.38 };
+const LOWER = { y: 1.42, maxH: 0.95, plaqueY: 1.2 };
+const UPPER = { y: 2.72, maxH: 1.05, plaqueY: 2.45 };
+function roomSlots(space, frames, count) {
+  const cx = (space.x0 + space.x1) / 2, cz = (space.z0 + space.z1) / 2;
+  const way = space.doors[0], wayFrame = frames[way.side];
+  const wayAt = new THREE.Vector3().setFromMatrixPosition(onWall(wayFrame, { x: wayFrame.u(way.at) }));
+  const a0 = Math.atan2(wayAt.x - cx, wayAt.z - cz);
+  const order = position => { const a = Math.atan2(position.x - cx, position.z - cz); return (((a0 - a) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI); };
+
+  const walls = ['N', 'S', 'E', 'W'].map(side => {
+    const frame = frames[side], L = frame.length, half = L / 2, door = space.doors.some(d => d.side === side);
+    const inner = doorwayHalfWidth(DOOR.width) + 0.2, outer = half - 0.35 - 0.6; // beside a doorway: clear of its frame and the corner
+    const centre = new THREE.Vector3().setFromMatrixPosition(onWall(frame, {}));
+    return {
+      frame, door, order: order(centre),
+      spots: door ? [-1, 1].map(s => ({ u: s * (inner + outer) / 2, maxW: Math.min(2.4, outer - inner - 0.44) }))
+        : [-1, 1].map(s => ({ u: s * L / 4, maxW: Math.min(2.6, 2 * (half - 0.82 - L / 4)) })),
+      single: door ? null : { u: 0, maxW: Math.min(3.6, L - 3.2), maxH: 2.3 },
+    };
+  });
+  const plain = walls.filter(w => !w.door).sort((a, b) => Math.abs(a.order - Math.PI) - Math.abs(b.order - Math.PI)); // the far wall first
+  const doorWalls = walls.filter(w => w.door);
+  const n = Math.min(count, 2 * 2 * walls.length);
+
+  // how many photos each spot holds: 1, or 2 stacked
+  const chosen = []; // { wall, spot, rows }
+  if (n <= plain.length) plain.slice(0, n).forEach(wall => chosen.push({ wall, spot: wall.single, rows: [ROW], big: true }));
+  else {
+    const singles = [...plain.flatMap(wall => wall.spots.map(spot => ({ wall, spot }))), ...doorWalls.flatMap(wall => wall.spots.map(spot => ({ wall, spot })))];
+    if (n <= singles.length) {
+      // share them between the plain walls (one in the middle, or two), then beside the doorways
+      const onPlain = Math.min(n, 2 * plain.length);
+      plain.forEach((wall, k) => {
+        const use = Math.floor(onPlain / plain.length) + (k < onPlain % plain.length ? 1 : 0);
+        if (use === 1) chosen.push({ wall, spot: wall.single, rows: [ROW], big: true });
+        else wall.spots.slice(0, use).forEach(spot => chosen.push({ wall, spot, rows: [ROW] }));
+      });
+      let left = n - onPlain;
+      for (const wall of doorWalls) for (const spot of wall.spots) if (left-- > 0) chosen.push({ wall, spot, rows: [ROW] });
+    } else {
+      let extra = n - singles.length; // spots that take two photos, plain walls first
+      for (const { wall, spot } of singles) chosen.push({ wall, spot, rows: extra-- > 0 ? [UPPER, LOWER] : [ROW] });
     }
   }
-  return [...plain, ...withDoor];
+
+  const slots = [];
+  for (const { wall, spot, rows, big } of chosen) {
+    for (const row of rows) {
+      const m = onWall(wall.frame, { x: spot.u, y: row.y, z: 0 });
+      const position = new THREE.Vector3().setFromMatrixPosition(m);
+      slots.push({
+        position, rotationY: wall.frame.ry + Math.PI, maxW: spot.maxW, maxH: big ? spot.maxH : row.maxH,
+        plaqueSide: -Math.sign(spot.u) || 1, plaqueY: row.plaqueY - row.y, order: order(position), row: row === UPPER ? 0 : 1, lamp: row !== LOWER,
+      });
+    }
+  }
+  // walking order round the room; in a two-row spot, the top photo first
+  slots.sort((a, b) => a.order - b.order || a.row - b.row);
+  return slots.slice(0, count);
 }
 
 export function buildMuseum(exhibition, renderer, { glass } = {}) {
@@ -273,7 +321,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
       batch.add(new THREE.BoxGeometry(2.3, 0.08, 0.54), M.velvet, matrix({ x: bx, y: y + 0.42, z: bz, ry }));
       walk[f].blocks.push(ix ? [bx - 0.6, bx + 0.6, bz - 1.5, bz + 1.5] : [bx - 1.5, bx + 1.5, bz - 0.6, bz + 0.6]);
       rooms[space.index] = {
-        floor: f, group, slots: roomSlots(space, frames), name: room.name,
+        floor: f, group, slotsFor: count => roomSlots(space, frames, count), name: room.name,
         entrance: (() => { // just inside the way in, looking into the room
           const d = space.doors[0], [ix2, iz2] = frames[d.side].inward;
           const px = ix2 ? (ix2 > 0 ? x0 : x1) + ix2 * 1.4 : d.at, pz = iz2 ? (iz2 > 0 ? z0 : z1) + iz2 * 1.4 : d.at;

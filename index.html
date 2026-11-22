@@ -21,9 +21,17 @@
     <div id="roomName" class="room-name" aria-live="polite"></div>
     <div class="hud-actions">
       <button id="roomsButton" type="button">Rooms</button>
-      <button id="photosButton" type="button">Your photos</button>
+      <button id="editButton" type="button" hidden>Edit</button>
     </div>
   </header>
+
+  <div id="editBar" class="edit-bar" hidden>
+    <span id="editBarNote" class="edit-note"></span>
+    <button id="addPhotoButton" type="button">＋ Add photo</button>
+    <button id="renameButton" type="button">Rename room</button>
+    <button id="editTitleButton" type="button">Exhibition title</button>
+    <input id="addPhotoInput" type="file" accept="image/*" hidden>
+  </div>
 
   <div id="roomBanner" class="room-banner" aria-hidden="true"></div>
   <div id="hint" class="hint"></div>
@@ -40,31 +48,64 @@
     <div id="roomsList" class="rooms-list"></div>
   </dialog>
 
-  <dialog id="photosDialog">
-    <div class="dialog-head"><h2>Try it with your photos</h2><button class="close" type="button" aria-label="Close">✕</button></div>
-    <p>See your own pictures on the walls. They stay on this device and aren't uploaded anywhere.</p>
-    <label class="pick">Choose photos<input id="pickPhotos" type="file" accept="image/*" multiple></label>
-    <p class="note">They hang 8 to a room, in the order they were taken.</p>
-    <div id="pickFolderRow">
-      <label class="pick secondary">Choose a folder<input id="pickFolder" type="file" webkitdirectory multiple></label>
-      <p class="note">Each folder inside it becomes a room, named after the folder.</p>
+  <!-- a close look at one photo -->
+  <div id="closeup" class="closeup" hidden>
+    <button id="closeupPrev" class="closeup-nav prev" type="button" aria-label="Previous photo">‹</button>
+    <button id="closeupNext" class="closeup-nav next" type="button" aria-label="Next photo">›</button>
+    <button id="closeupClose" class="closeup-close" type="button" aria-label="Step back">✕</button>
+    <button id="closeupLabel" class="closeup-label" type="button">Label</button>
+    <div id="closeupTools" class="closeup-tools" hidden>
+      <button id="closeupEdit" type="button">Edit details</button>
+      <button id="closeupLeft" type="button" aria-label="Move one place back">← Move</button>
+      <button id="closeupRight" type="button" aria-label="Move one place on">Move →</button>
+      <button id="closeupRemove" class="danger" type="button">Remove</button>
     </div>
-    <p id="photosError" class="error-text" role="alert" hidden></p>
-    <button id="backToSample" class="link" type="button" hidden>Back to the sample exhibition</button>
+  </div>
+
+  <dialog id="signInDialog">
+    <div class="dialog-head"><h2>Edit the gallery</h2><button class="close" type="button" aria-label="Close">✕</button></div>
+    <p>Sign in with the Google account that keeps the gallery's photos.</p>
+    <button id="signInButton" class="pick" type="button">Sign in with Google</button>
+    <p id="signInError" class="error-text" role="alert" hidden></p>
   </dialog>
 
-  <div id="viewer" class="viewer" hidden>
-    <img id="viewerImage" alt="">
-    <div class="viewer-text">
-      <div id="viewerTitle" class="viewer-title"></div>
-      <div id="viewerDate" class="viewer-date"></div>
-      <div id="viewerCaption" class="viewer-caption"></div>
-      <div id="viewerPlace" class="viewer-place"></div>
-    </div>
-    <button id="viewerPrev" class="viewer-nav prev" type="button" aria-label="Previous photo">‹</button>
-    <button id="viewerNext" class="viewer-nav next" type="button" aria-label="Next photo">›</button>
-    <button id="viewerClose" class="viewer-close" type="button" aria-label="Close">✕</button>
-  </div>
+  <dialog id="photoDialog" class="form">
+    <form id="photoForm" class="photo-form">
+      <div class="dialog-head"><h2 id="photoHeading">Photo details</h2><button class="close" type="button" aria-label="Close">✕</button></div>
+      <img id="photoPreview" class="photo-preview" alt="">
+      <label>Title<input name="title" maxlength="120" autocomplete="off"></label>
+      <div class="pair">
+        <label>Year<input name="year" maxlength="20" inputmode="numeric" autocomplete="off"></label>
+        <label>Place<input name="place" maxlength="120" autocomplete="off"></label>
+      </div>
+      <label>Description<textarea name="description" rows="3" maxlength="600"></textarea></label>
+      <fieldset>
+        <legend>Camera details</legend>
+        <label>Camera<input name="camera" maxlength="80" autocomplete="off"></label>
+        <label>Lens<input name="lens" maxlength="120" autocomplete="off"></label>
+        <label>Settings<input name="settings" maxlength="120" autocomplete="off" placeholder="50 mm · f/2.8 · 1/250 s · ISO 200"></label>
+      </fieldset>
+      <label>Room<select name="room"></select></label>
+      <div class="form-buttons"><button class="cancel" type="button">Cancel</button><button id="photoSave" class="primary" type="submit">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="textDialog" class="form">
+    <form id="textForm" class="photo-form">
+      <div class="dialog-head"><h2 id="textHeading"></h2><button class="close" type="button" aria-label="Close">✕</button></div>
+      <div id="textFields"></div>
+      <div class="form-buttons"><button class="cancel" type="button">Cancel</button><button class="primary" type="submit">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="noticeDialog">
+    <div class="dialog-head"><h2 id="noticeHeading"></h2><button class="close" type="button" aria-label="Close">✕</button></div>
+    <p id="noticeText"></p>
+    <p id="noticeCode" class="code" hidden></p>
+    <div class="form-buttons"><button class="cancel primary" type="button">OK</button></div>
+  </dialog>
+
+  <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busyText"></span></div>
 
   <script type="module" src="js/main.js"></script>
 </body>
