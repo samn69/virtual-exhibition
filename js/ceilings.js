@@ -11,7 +11,9 @@ function under(x0, x1, z0, z1) {
   return g;
 }
 
-export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true }) {
+// roof: an optional separate batch for the glass vault, which rises above the ceiling (into the
+// floor above, so it is only drawn while the visitor is below it)
+export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true, roof = batch }) {
   const top = y + height, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const alongZ = z1 - z0 >= x1 - x0;
   const span = alongZ ? x1 - x0 : z1 - z0, length = alongZ ? z1 - z0 : x1 - x0;
@@ -41,14 +43,14 @@ export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true }
 
   // an arched glass roof over the opening, with iron ribs
   const r = across / 2;
-  batch.add(new THREE.CylinderGeometry(r, r, along, 32, 1, true, -Math.PI / 2, Math.PI), M.laylight, at(0, 0, 0, { rx: -Math.PI / 2 }));
-  for (const s of [-1, 1]) batch.add(new THREE.CircleGeometry(r, 24, 0, Math.PI), M.laylight, at(0, 0, s * along / 2));
+  roof.add(new THREE.CylinderGeometry(r, r, along, 32, 1, true, -Math.PI / 2, Math.PI), M.laylight, at(0, 0, 0, { rx: -Math.PI / 2 }));
+  for (const s of [-1, 1]) roof.add(new THREE.CircleGeometry(r, 24, 0, Math.PI), M.laylight, at(0, 0, s * along / 2));
   const ribs = Math.max(2, Math.round(along / 1.2));
-  for (let i = 0; i <= ribs; i++) batch.add(new THREE.TorusGeometry(r - 0.03, 0.035, 6, 24, Math.PI), M.iron, at(0, 0, -along / 2 + (along * i) / ribs));
-  for (const a of [Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4]) batch.add(new THREE.BoxGeometry(0.05, 0.05, along), M.iron, at(Math.cos(a) * (r - 0.03), Math.sin(a) * (r - 0.03), 0));
+  for (let i = 0; i <= ribs; i++) roof.add(new THREE.TorusGeometry(r - 0.03, 0.035, 6, 24, Math.PI), M.iron, at(0, 0, -along / 2 + (along * i) / ribs));
+  for (const a of [Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4]) roof.add(new THREE.BoxGeometry(0.05, 0.05, along), M.iron, at(Math.cos(a) * (r - 0.03), Math.sin(a) * (r - 0.03), 0));
   // a stone frame round the opening
   for (const s of [-1, 1]) {
-    batch.add(new THREE.BoxGeometry(across + 0.6, 0.3, 0.3), M.stone, at(0, -0.15, s * (along / 2 + 0.15)));
-    batch.add(new THREE.BoxGeometry(0.3, 0.3, along), M.stone, at(s * (across / 2 + 0.15), -0.15, 0));
+    roof.add(new THREE.BoxGeometry(across + 0.6, 0.3, 0.3), M.stone, at(0, -0.15, s * (along / 2 + 0.15)));
+    roof.add(new THREE.BoxGeometry(0.3, 0.3, along), M.stone, at(s * (across / 2 + 0.15), -0.15, 0));
   }
 }

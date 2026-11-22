@@ -255,6 +255,7 @@ renderer.setAnimationLoop(() => {
   walker.update(dt);
   sky.update(clock.elapsedTime);
   updateZone();
+  museum.updateRoofs(camera.position.y);
   if (marker.material.opacity > 0) marker.material.opacity = walker.target ? 0.8 : Math.max(0, marker.material.opacity - dt * 2);
   renderer.render(scene, camera);
 });

@@ -209,6 +209,9 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
 
   for (let f = 0; f < floors; f++) { const group = new THREE.Group(); group.name = `floor ${f + 1}`; floorGroups.push(group); root.add(group); }
   const batches = floorGroups.map(() => new Batch());
+  // the glass vaults of the halls below the top floor rise into the floor above: kept apart, and
+  // drawn only while the visitor is below that floor
+  const roofs = floorGroups.map(() => new Batch()), roofGroups = [];
 
   for (const space of spaces) {
     const f = space.floor, batch = batches[f], group = floorGroups[f];
@@ -220,7 +223,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
 
     // floor, and a ceiling: a skylight in the halls and the entrance, a plain moulded one in the rooms
     batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, OAK_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
-    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: space.kind !== 'room' });
+    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: space.kind !== 'room', roof: f < floors - 1 && space.kind === 'hall' ? roofs[f] : batch });
 
     const frames = {};
     for (const side of ['N', 'S', 'E', 'W']) {
@@ -305,7 +308,11 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   placeEntrance('bust', -ex, 12.4, Math.PI / 2, 0.55); placeEntrance('bust', ex, 12.4, -Math.PI / 2, 0.55);
   for (const [type, x, z] of entrancePlants(ex, ENTRANCE.z1)) placeEntrance(type, x, z, 0, 0.75);
 
-  for (let f = 0; f < floors; f++) batches[f].build(floorGroups[f], raycastTargets);
+  for (let f = 0; f < floors; f++) {
+    batches[f].build(floorGroups[f], raycastTargets);
+    const roof = new THREE.Group(); roof.name = `hall roof ${f + 1}`;
+    roofs[f].build(roof, null); floorGroups[f].add(roof); roofGroups.push(roof);
+  }
 
   // ── stairs: the oval entrance steps and the spiral stairwell ──
   const stairs = buildStairs({ floors, root, M, raycastTargets, entranceGroup: g0, decor, paper: wallpaper(HALL_COLOR, 2), entrance: ENTRANCE });
@@ -354,6 +361,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     start: { floor: 0, x: 0, z: ENTRANCE.z1 - 1.6, yaw: 0 },
     hallStart: f => ({ floor: f, x: 0, z: -6.6, yaw: Math.PI }),
     showFloors(list) { floorGroups.forEach((g, f) => { g.visible = list.includes(f); }); },
+    updateRoofs(eyeY) { roofGroups.forEach((g, f) => { g.visible = f === floors - 1 || eyeY < floorY(f + 1); }); },
     dispose() {
       for (const texture of [oak, marble]) texture.dispose();
       for (const m of wallpapers.values()) { m.map.dispose(); m.dispose(); }
