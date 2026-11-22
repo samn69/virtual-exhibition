@@ -38,7 +38,7 @@ A room holds 1 to 16 photos and arranges itself: one large photo in the middle o
 
 In the owner's Google Drive, in a folder called **Virtual Exhibition**: two copies of each photo (one sized for the wall, one up to 4096 px for close looks) and `virtual-exhibition.json`, which lists the rooms and photos. The photos are re-saved as JPEG, which leaves out the location a camera stores in a file; the files are shared "anyone with the link can view" so visitors can see them. Removed photos go to the Drive bin.
 
-The gallery only has access to files it created itself (Google's `drive.file` permission), never the rest of the Drive. `js/config.js` holds the Google sign-in ID, the API key (restricted to this site and the Drive API) and the id of `virtual-exhibition.json`. Until that id is set, visitors see the sample exhibition below.
+The gallery only has access to files it created itself (Google's `drive.file` permission), never the rest of the Drive. `js/config.js` holds the Google sign-in ID, the API key (restricted to this site and the Drive API) and the id of `virtual-exhibition.json`. Without that id, visitors see the sample exhibition below.
 
 `?mockdrive` (with `?edit`) tries the editing without Google, keeping everything in the page until it's reloaded.
 

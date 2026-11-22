@@ -4,5 +4,5 @@ export const GOOGLE = {
   clientId: '74371386532-h8kkp93sggtnoh0vvk9enajdboookcge.apps.googleusercontent.com',
   apiKey: 'AIzaSyCgJRZhHLapzV4BN-BvWljhYPdWb7WU3Cg',
   // the exhibition file in Drive; set once the owner has signed in the first time
-  manifestId: '',
+  manifestId: '10TAbpOPwnV1aBR5Z_H2QmlGwwBalKiL9',
 };
