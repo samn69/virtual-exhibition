@@ -4,6 +4,7 @@ import { buildMuseum } from './building.js';
 import { Artworks, placeholderCanvas } from './artworks.js';
 import { Walker } from './controls.js';
 import { decorate } from './decor.js';
+import { Sky } from './sky.js';
 import { loadExhibition, exhibitionFromFiles, normalizeExhibition } from './exhibition.js';
 
 const $ = id => document.getElementById(id);
@@ -32,6 +33,7 @@ scene.add(sun);
 const reflections = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 200);
+const sky = new Sky(); // the sky, drawn by the roof glass
 const walker = new Walker(camera, canvas, { onTap: tap, onMove: hideHint });
 walker.attachJoystick($('joystick'));
 if (isTouch) $('joystick').hidden = false;
@@ -63,7 +65,7 @@ function disposeWorld() {
 function show(newExhibition) {
   if (museum) disposeWorld();
   exhibition = newExhibition;
-  museum = buildMuseum(exhibition, renderer);
+  museum = buildMuseum(exhibition, renderer, { glass: sky.material });
   scene.add(museum.root);
   decorate(museum.decor, reflections);
   artworks = new Artworks(museum, exhibition, { onBusy: count => { $('loading').hidden = count === 0; } });
@@ -136,7 +138,8 @@ function climb(dir) {
   const to = walker.floor + dir;
   if (walker.gliding || to < 0 || to >= museum.floors) return;
   hideHint();
-  walker.glide(museum.glidePath(walker.floor, dir), GLIDE_SECONDS, () => { currentZone = null; });
+  const path = museum.glidePath(walker.floor, dir);
+  walker.glide(path, path.seconds || GLIDE_SECONDS, () => { currentZone = null; });
   $('stairs').hidden = true;
 }
 $('stairUp').onclick = () => climb(1);
@@ -250,6 +253,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = clock.getDelta();
   walker.update(dt);
+  sky.update(clock.elapsedTime);
   updateZone();
   if (marker.material.opacity > 0) marker.material.opacity = walker.target ? 0.8 : Math.max(0, marker.material.opacity - dt * 2);
   renderer.render(scene, camera);

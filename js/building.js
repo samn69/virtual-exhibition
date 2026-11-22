@@ -14,30 +14,36 @@ import * as THREE from 'three';
 import { Batch, matrix } from './batch.js';
 import { canvasTexture, oakTexture, OAK_TILE, wallpaperTexture, WALLPAPER_TILE, marbleTexture } from './textures.js';
 import { buildStairs, ovalStepsHeight } from './stairs.js';
-import { H, T, BASE, PHOTO_Y, DOOR, ROOMS_PER_FLOOR, floorY } from './constants.js';
-import { wallShape, archTrim } from './shapes.js';
+import { H, T, BASE, PHOTO_Y, DOOR, ROOMS_PER_FLOOR, floorY, HALL_HALF, ENTRANCE_HALF, HALL_COLOR, WING_COLORS } from './constants.js';
+import { ceiling } from './ceilings.js';
+import { wallShape } from './shapes.js';
+import { doorway, doorwayHalfWidth } from './doorways.js';
+import { frontDoors } from './frontdoors.js';
 export * from './constants.js';
 
 const MARGIN = 0.45;           // how close a visitor gets to a wall
 
-const HALL_COLOR = '#6a2626';
-
+// two ficus by the front doors
+const entrancePlants = (x, z1) => [['ficus', -x, z1 - 1.0], ['ficus', x, z1 - 1.0]];
 
 // the right wing in visiting order; the left wing is its mirror image. The first door is the way in.
-const INNER = [6.4, 16.4], OUTER = [16.8, 26.8], SOUTH = [0.2, 9.2], NORTH = [-9.2, -0.2];
-const WING = [
-  { key: '2', x: INNER, z: SOUTH, doors: [['W', 'hall'], ['E', '1']] },
-  { key: '1', x: OUTER, z: SOUTH, doors: [['W', '2'], ['N', '4']] },
-  { key: '4', x: OUTER, z: NORTH, doors: [['S', '1'], ['W', '3']] },
-  { key: '3', x: INNER, z: NORTH, doors: [['E', '4'], ['W', 'hall']] },
-];
+const SOUTH = [0.2, 9.2], NORTH = [-9.2, -0.2];
+const wingPlan = () => {
+  const INNER = [HALL_HALF + 0.4, HALL_HALF + 10.4], OUTER = [HALL_HALF + 10.8, HALL_HALF + 20.8];
+  return [
+    { key: '2', x: INNER, z: SOUTH, doors: [['W', 'hall'], ['E', '1']] },
+    { key: '1', x: OUTER, z: SOUTH, doors: [['W', '2'], ['N', '4']] },
+    { key: '4', x: OUTER, z: NORTH, doors: [['S', '1'], ['W', '3']] },
+    { key: '3', x: INNER, z: NORTH, doors: [['E', '4'], ['W', 'hall']] },
+  ];
+};
 const ORDER = ['R2', 'R1', 'R4', 'R3', 'L2', 'L1', 'L4', 'L3'];
 const MIRROR = { E: 'W', W: 'E', N: 'N', S: 'S' };
 
 function planFloor(f) {
   const y = floorY(f), spaces = [];
   const id = key => key === 'hall' ? `h${f}` : `r${f * ROOMS_PER_FLOOR + ORDER.indexOf(key)}`;
-  const hall = { id: `h${f}`, kind: 'hall', floor: f, x0: -6, x1: 6, z0: -9.2, z1: 9.2, y, doors: [
+  const hall = { id: `h${f}`, kind: 'hall', floor: f, x0: -HALL_HALF, x1: HALL_HALF, z0: -9.2, z1: 9.2, y, doors: [
     { side: 'E', at: 4.7, to: id('R2') }, { side: 'E', at: -4.7, to: id('R3') },
     { side: 'W', at: 4.7, to: id('L2') }, { side: 'W', at: -4.7, to: id('L3') },
     { side: 'N', at: 0, to: `s${f}` },
@@ -45,25 +51,25 @@ function planFloor(f) {
   if (f === 0) hall.doors.push({ side: 'S', at: 0, to: 'e' });
   spaces.push(hall);
   for (const wing of ['R', 'L']) {
-    for (const room of WING) {
+    wingPlan().forEach((room, order) => {
       const m = wing === 'L';
       const [a, b] = room.x, x0 = m ? -b : a, x1 = m ? -a : b, [z0, z1] = room.z;
       spaces.push({
-        id: id(wing + room.key), kind: 'room', floor: f, index: f * ROOMS_PER_FLOOR + ORDER.indexOf(wing + room.key), x0, x1, z0, z1, y,
+        id: id(wing + room.key), kind: 'room', floor: f, wing, order, index: f * ROOMS_PER_FLOOR + ORDER.indexOf(wing + room.key), x0, x1, z0, z1, y,
         doors: room.doors.map(([side, to]) => {
           const s = m ? MIRROR[side] : side;
           return { side: s, at: s === 'E' || s === 'W' ? (z0 + z1) / 2 : (x0 + x1) / 2, to: id(to === 'hall' ? 'hall' : wing + to) };
         }),
       });
-    }
+    });
   }
   return spaces;
 }
 
-const ENTRANCE = { id: 'e', kind: 'entrance', floor: 0, x0: -7, x1: 7, z0: 9.6, z1: 21.6, y: 0, height: BASE + H, doors: [
+const entrancePlan = () => ({ id: 'e', kind: 'entrance', floor: 0, x0: -ENTRANCE_HALF, x1: ENTRANCE_HALF, z0: 9.6, z1: 20.6, y: 0, height: BASE + H + 1.2, doors: [
   { side: 'N', at: 0, to: 'h0', bottom: BASE },
-  { side: 'S', at: 0, to: null, width: 3.2, spring: 3.0, front: true },
-] };
+  { side: 'S', at: 0, to: null, width: 3.4, spring: 3.6, front: true },
+] });
 
 // a wall seen from inside a space: where its face is and which way it turns
 function wallFrame(space, side) {
@@ -92,12 +98,12 @@ function flat(x0, x1, z0, z1, tile, up = true) {
 }
 
 const SERIF = 'Georgia, "Times New Roman", serif';
-function signTexture(label) {
-  return canvasTexture(1024, 192, (g, w, h) => {
+export function signTexture(label, height = 192) {
+  return canvasTexture(1024, height, (g, w, h) => {
     g.fillStyle = '#1d1712'; g.fillRect(0, 0, w, h);
     g.strokeStyle = '#b8954a'; g.lineWidth = 6; g.strokeRect(10, 10, w - 20, h - 20);
     g.fillStyle = '#d9bb72'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    let size = 76; g.font = `${size}px ${SERIF}`;
+    let size = Math.round(h * 0.4); g.font = `${size}px ${SERIF}`;
     while (g.measureText(label).width > w - 80 && size > 30) { size -= 4; g.font = `${size}px ${SERIF}`; }
     g.fillText(label, w / 2, h / 2 + 4);
   });
@@ -119,13 +125,22 @@ function titleTexture(title, subtitle) {
   });
 }
 
+// the name over a doorway, on a sign above the keystone
+export function nameplate(label, info, at) {
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.52), new THREE.MeshBasicMaterial({ map: signTexture(label), toneMapped: false }));
+  sign.applyMatrix4(at.clone().multiply(matrix({ y: info.sign, z: -0.03, ry: Math.PI })));
+  return sign;
+}
+
 // where photos hang in a wing room: two per wall, clear of the doorways, with room for the plaque
 function roomSlots(space, frames) {
   const plain = [], withDoor = [];
   for (const side of ['N', 'S', 'E', 'W']) {
     const frame = frames[side], L = frame.length, door = space.doors.some(d => d.side === side);
-    const half = L / 2, positions = door ? [-1, 1].map(s => s * (1.77 + (half - 2.59) / 2)) : [-L / 4, L / 4];
-    const maxW = door ? Math.min(2.4, half - 2.59) : Math.min(2.6, 2 * (half - 0.82 - L / 4));
+    // beside a doorway: between its stone frame and the corner, leaving room for the label on the outer side
+    const half = L / 2, inner = doorwayHalfWidth(DOOR.width) + 0.2, outer = half - 0.35 - 0.6;
+    const positions = door ? [-1, 1].map(s => s * (inner + outer) / 2) : [-L / 4, L / 4];
+    const maxW = door ? Math.min(2.4, outer - inner - 0.44) : Math.min(2.6, 2 * (half - 0.82 - L / 4));
     for (const u of positions) {
       const m = onWall(frame, { x: u, y: PHOTO_Y, z: 0 });
       const position = new THREE.Vector3().setFromMatrixPosition(m);
@@ -135,7 +150,7 @@ function roomSlots(space, frames) {
   return [...plain, ...withDoor];
 }
 
-export function buildMuseum(exhibition, renderer) {
+export function buildMuseum(exhibition, renderer, { glass } = {}) {
   const floors = exhibition.floors;
   const anisotropy = renderer.capabilities.getMaxAnisotropy();
   const root = new THREE.Group();
@@ -152,14 +167,20 @@ export function buildMuseum(exhibition, renderer) {
   const M = {
     floor: new THREE.MeshLambertMaterial({ map: oak }),
     ceiling: new THREE.MeshLambertMaterial({ color: '#efe8db', emissive: '#6e6658' }),
+    vault: new THREE.MeshLambertMaterial({ color: '#efe8db', emissive: '#6e6658', side: THREE.BackSide }),
+    vaultRib: new THREE.MeshLambertMaterial({ color: '#e2d8c4', emissive: '#4a443a', side: THREE.BackSide }),
+    lunette: new THREE.MeshLambertMaterial({ color: '#ebe3d4', emissive: '#5a5448' }),
+    iron: new THREE.MeshLambertMaterial({ color: '#4a4640', emissive: '#1a1814' }),
+    carpet: new THREE.MeshLambertMaterial({ color: '#8e1c22', emissive: '#1c0406' }),
     stone: new THREE.MeshLambertMaterial({ color: '#e9e1d0' }),
     marble: new THREE.MeshLambertMaterial({ map: marble }),
     skirting: new THREE.MeshLambertMaterial({ color: '#3a2c22' }),
-    laylight: new THREE.MeshBasicMaterial({ color: '#f3f6fa' }),
+    laylight: glass || new THREE.MeshBasicMaterial({ color: '#dfe8ee', side: THREE.DoubleSide }), // roof glass, showing the sky
     lead: new THREE.MeshLambertMaterial({ color: '#8c867c', emissive: '#3a3630' }),
     wood: new THREE.MeshLambertMaterial({ color: '#3b2a1f' }),
     velvet: new THREE.MeshLambertMaterial({ color: '#6b1f24' }),
     door: new THREE.MeshLambertMaterial({ color: '#4a3020', emissive: '#120a05' }),
+    gilt: new THREE.MeshLambertMaterial({ color: '#c49a48', emissive: '#3a2808' }),
     glass: new THREE.MeshBasicMaterial({ color: '#f1e2c0' }),
     brass: new THREE.MeshLambertMaterial({ color: '#a8823a', emissive: '#2a1c06' }),
   };
@@ -180,6 +201,8 @@ export function buildMuseum(exhibition, renderer) {
   exhibition.rooms.forEach((room, g) => names.set(`r${g}`, room.name));
   const signLabel = to => to.startsWith('s') ? 'Stairs' : to.startsWith('h') ? 'Central Hall' : names.get(to);
 
+  const ENTRANCE = entrancePlan();
+  let entranceDoorTop = BASE + 4.5;
   const spaces = [];
   for (let f = 0; f < floors; f++) spaces.push(...planFloor(f));
   spaces.push(ENTRANCE);
@@ -192,21 +215,12 @@ export function buildMuseum(exhibition, renderer) {
     const { x0, x1, z0, z1, y } = space, height = space.height || H;
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     const room = space.kind === 'room' ? exhibition.rooms[space.index] : null;
-    const paper = room
-      ? wallpaper(room.color, space.index % 3)
-      : wallpaper(HALL_COLOR, 2);
+    // blue rooms on the right, green on the left, each with one of the three patterns; red halls
+    const paper = room ? wallpaper(WING_COLORS[space.wing], space.order % 3) : wallpaper(HALL_COLOR, 2);
 
-    // floor, ceiling and a laylight
+    // floor, and a ceiling with a skylight
     batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, OAK_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
-    batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, 1, false), M.ceiling, matrix({ y: y + height }));
-    const lw = (x1 - x0) * 0.5, ld = (z1 - z0) * 0.4;
-    batch.add(flat(cx - lw / 2, cx + lw / 2, cz - ld / 2, cz + ld / 2, 1, false), M.laylight, matrix({ y: y + height - 0.02 }));
-    for (let i = 1; i < 4; i++) batch.add(new THREE.BoxGeometry(0.05, 0.04, ld), M.lead, matrix({ x: cx - lw / 2 + (lw * i) / 4, y: y + height - 0.04, z: cz }));
-    batch.add(new THREE.BoxGeometry(lw, 0.04, 0.05), M.lead, matrix({ x: cx, y: y + height - 0.04, z: cz }));
-    for (const s of [-1, 1]) {
-      batch.add(new THREE.BoxGeometry(lw + 0.4, 0.22, 0.2), M.stone, matrix({ x: cx, y: y + height - 0.11, z: cz + s * (ld / 2 + 0.1) }));
-      batch.add(new THREE.BoxGeometry(0.2, 0.22, ld), M.stone, matrix({ x: cx + s * (lw / 2 + 0.1), y: y + height - 0.11, z: cz }));
-    }
+    ceiling(batch, M, { x0, x1, z0, z1, y, height });
 
     const frames = {};
     for (const side of ['N', 'S', 'E', 'W']) {
@@ -226,23 +240,13 @@ export function buildMuseum(exhibition, renderer) {
       }
 
       for (const d of doors) {
-        batch.add(archTrim(d.width, d.spring), M.stone, onWall(frame, { x: d.u, y: d.bottom, z: -0.05 }));
-        if (d.front) { // the closed front doors: two wooden leaves and a glazed fanlight
-          for (const s of [-1, 1]) {
-            batch.add(new THREE.BoxGeometry(d.width / 2 - 0.02, d.spring, 0.08), M.door, onWall(frame, { x: d.u + s * d.width / 4, y: d.spring / 2, z: 0.1 }));
-            for (const py of [0.8, 2.1]) batch.add(new THREE.BoxGeometry(d.width / 2 - 0.4, 0.9, 0.04), M.wood, onWall(frame, { x: d.u + s * d.width / 4, y: py, z: 0.05 }));
-            batch.add(new THREE.CylinderGeometry(0.03, 0.03, 0.4), M.brass, onWall(frame, { x: d.u + s * 0.18, y: 1.2, z: 0.03 }));
-          }
-          const fan = new THREE.Shape(); fan.absarc(0, 0, d.width / 2, 0, Math.PI, false); fan.closePath();
-          batch.add(new THREE.ShapeGeometry(fan, 20), M.glass, onWall(frame, { x: d.u, y: d.spring, z: 0.12, ry: Math.PI }));
-          continue;
-        }
-        // a sign above the doorway saying where it leads (the entrance has the exhibition title there instead)
-        if (space.kind !== 'entrance') {
-        const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.56), new THREE.MeshBasicMaterial({ map: signTexture(signLabel(d.to)), toneMapped: false }));
-        sign.applyMatrix4(onWall(frame, { x: d.u, y: d.bottom + d.spring + d.width / 2 + 0.72, z: -0.02, ry: Math.PI }));
-        group.add(sign);
-        }
+        // a classical stone frame round the doorway, and the name of where it leads
+        const at = onWall(frame, { x: d.u, y: d.bottom });
+        const add = (geometry, material, local) => batch.add(geometry, material, at.clone().multiply(local));
+        if (d.front) { frontDoors(add, M, d.width, d.spring); continue; }
+        const frameInfo = doorway(add, M, d.width, d.spring);
+        if (space.kind === 'entrance') entranceDoorTop = d.bottom + frameInfo.top; // the exhibition title goes above
+        else group.add(nameplate(signLabel(d.to), frameInfo, at));
         if (d.to) edges.push([space.id, d.to]);
         // the opening is walkable
         const [ix, iz] = frame.inward, along = d.width / 2 - 0.35;
@@ -279,7 +283,7 @@ export function buildMuseum(exhibition, renderer) {
   // ── the entrance hall: oval steps, title above the doorway, sculptures and plants ──
   const entrance = batches[0], g0 = floorGroups[0];
   const title = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.15), new THREE.MeshBasicMaterial({ map: titleTexture(exhibition.title, exhibition.subtitle), toneMapped: false }));
-  title.position.set(0, 6.4, ENTRANCE.z0 + 0.03);
+  title.position.set(0, entranceDoorTop + 0.75, ENTRANCE.z0 + 0.03);
   g0.add(title);
   walk[0].rects.push([ENTRANCE.x0 + MARGIN, ENTRANCE.x1 - MARGIN, ENTRANCE.z0 + MARGIN, ENTRANCE.z1 - MARGIN]);
 
@@ -288,27 +292,24 @@ export function buildMuseum(exhibition, renderer) {
     decor.push({ group: floorGroups[f], type, x, y: f < 0 ? 0 : floorY(f), z, ry });
     walk[Math.max(f, 0)].circles.push([x, z, radius]);
   };
+  // the halls: a plant in each corner and a large flower arrangement in the middle
+  const corners = [['ficus', 'ficus', 'ficus', 'ficus'], ['bird', 'bird', 'monstera', 'monstera']];
   for (let f = 0; f < floors; f++) {
-    const swap = f % 2 ? -1 : 1;
-    place(f, 'bust', -2.8, -8.1, 0, 0.55); place(f, 'bust', 2.8, -8.1, 0, 0.55);
-    place(f, 'ficus', -5.0, -8.2, 0, 0.75); place(f, 'ficus', 5.0, -8.2, 0, 0.75);
-    place(f, 'ficus', -5.0, 8.2, 0, 0.75); place(f, 'ficus', 5.0, 8.2, 0, 0.75);
-    place(f, swap > 0 ? 'monstera' : 'bird', 5.25, 0, 0, 0.7);
-    place(f, swap > 0 ? 'bird' : 'monstera', -5.25, 0, 0, 0.7);
-    place(f, 'snake', 2.9, 8.4, 0, 0.45); place(f, 'alocasia', -2.9, 8.4, 0, 0.55);
-    if (f === 0) place(f, 'horse', 0, 0, Math.PI / 2, 1.2);
-    else { place(f, 'settee', 0, 0, 0, 1.6); place(f, 'vase', 0, 8.4, 0, 0.5); }
+    const kinds = corners[f % 2], cx = HALL_HALF - 1.0;
+    [[-cx, -8.2], [cx, -8.2], [-cx, 8.2], [cx, 8.2]].forEach(([x, z], i) => place(f, kinds[i], x, z, 0, 0.75));
+    place(f, 'flowers', 0, 0, 0, 1.0);
   }
-  // the entrance belongs to the ground floor's group, at street level
+  // the entrance belongs to the ground floor's group, at street level: busts beside the steps,
+  // and plants by the front doors
   const placeEntrance = (type, x, z, ry = 0, radius = 0.5) => { decor.push({ group: g0, type, x, y: 0, z, ry }); walk[0].circles.push([x, z, radius]); };
-  placeEntrance('bust', -6.0, 12.6, Math.PI / 2, 0.55); placeEntrance('bust', 6.0, 12.6, -Math.PI / 2, 0.55);
-  placeEntrance('ficus', -6.0, 20.6, 0, 0.75); placeEntrance('ficus', 6.0, 20.6, 0, 0.75);
-  placeEntrance('monstera', 6.0, 16.8, 0, 0.7); placeEntrance('bird', -6.0, 16.8, 0, 0.7);
+  const ex = ENTRANCE_HALF - 1.0;
+  placeEntrance('bust', -ex, 12.4, Math.PI / 2, 0.55); placeEntrance('bust', ex, 12.4, -Math.PI / 2, 0.55);
+  for (const [type, x, z] of entrancePlants(ex, ENTRANCE.z1)) placeEntrance(type, x, z, 0, 0.75);
 
   for (let f = 0; f < floors; f++) batches[f].build(floorGroups[f], raycastTargets);
 
   // ── stairs: the oval entrance steps and the spiral stairwell ──
-  const stairs = buildStairs({ floors, root, M, raycastTargets, entranceGroup: g0, decor });
+  const stairs = buildStairs({ floors, root, M, raycastTargets, entranceGroup: g0, decor, paper: wallpaper(HALL_COLOR, 2), entrance: ENTRANCE });
   for (let f = 0; f < floors; f++) {
     edges.push([`h${f}`, `s${f}`]);
     if (f) edges.push([`s${f - 1}`, `s${f}`]);
@@ -351,13 +352,13 @@ export function buildMuseum(exhibition, renderer) {
     walkable, heightAt, zoneAt, distancesFrom,
     onLanding: (f, x, z) => stairs.onLanding(f, x, z),
     glidePath: stairs.glidePath,
-    start: { floor: 0, x: 0, z: 19.6, yaw: 0 },
+    start: { floor: 0, x: 0, z: ENTRANCE.z1 - 1.6, yaw: 0 },
     hallStart: f => ({ floor: f, x: 0, z: -6.6, yaw: Math.PI }),
     showFloors(list) { floorGroups.forEach((g, f) => { g.visible = list.includes(f); }); },
     dispose() {
       for (const texture of [oak, marble]) texture.dispose();
       for (const m of wallpapers.values()) { m.map.dispose(); m.dispose(); }
-      for (const m of Object.values(M)) m.dispose();
+      for (const m of Object.values(M)) if (!m.userData.shared) m.dispose();
     },
   };
 }

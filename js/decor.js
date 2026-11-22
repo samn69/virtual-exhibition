@@ -49,6 +49,9 @@ function materials() {
     monstera: new THREE.MeshLambertMaterial({ map: leafTexture('monstera'), alphaTest: 0.5, side: THREE.DoubleSide }),
     bird: new THREE.MeshLambertMaterial({ map: leafTexture('bird'), alphaTest: 0.5, side: THREE.DoubleSide }),
     snake: new THREE.MeshLambertMaterial({ map: leafTexture('snake'), alphaTest: 0.5, side: THREE.DoubleSide }),
+    blooms: new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
+    flowerLeaf: new THREE.MeshLambertMaterial({ color: '#3f6b34', side: THREE.DoubleSide }),
+    foliage: new THREE.MeshLambertMaterial({ color: '#2f4f27' }),
   };
   for (const m of Object.values(shared)) m.userData.shared = true; // kept when the gallery is rebuilt
   return shared;
@@ -124,6 +127,57 @@ function plant(kind) {
   return group;
 }
 
+// a large arrangement of flowers in a stone urn on a pedestal, about as tall as a statue
+function flowers() {
+  const random = seeded(77), m = materials(), group = new THREE.Group();
+  const pedestalH = 0.75, urnH = 0.62, rim = pedestalH + urnH;
+  const base = new THREE.Mesh(lathe([[0, 0], [0.5, 0], [0.5, 0.12], [0.42, 0.18], [0.36, 0.24], [0.36, pedestalH - 0.12], [0.44, pedestalH - 0.06], [0.5, pedestalH - 0.04], [0.5, pedestalH], [0, pedestalH]], 40), m.marble);
+  const urn = new THREE.Mesh(lathe([[0, 0], [0.26, 0], [0.26, 0.05], [0.12, 0.1], [0.1, 0.2], [0.3, 0.3], [0.46, 0.46], [0.5, 0.56], [0.54, 0.6], [0.54, 0.62], [0.47, 0.62], [0.45, 0.58], [0, 0.58]].map(([r, y]) => [r, y + pedestalH]), 40), m.marble);
+  group.add(base, urn);
+  // blooms: soft round roses and peonies, star-shaped lilies, and tall spires, with leaves
+  const palette = ['#f2d3dc', '#e8a3b5', '#c93a52', '#f7f2ea', '#f3e1c0', '#d9677e', '#ffffff', '#b0233c'];
+  const rose = new THREE.IcosahedronGeometry(0.075, 1).scale(1, 0.72, 1);
+  const lily = (() => { const sh = new THREE.Shape(); for (let i = 0; i <= 60; i++) { const a = (i / 60) * Math.PI * 2, r = 0.03 + 0.07 * Math.abs(Math.cos(a * 3)) ** 2; i ? sh.lineTo(r * Math.cos(a), r * Math.sin(a)) : sh.moveTo(r * Math.cos(a), r * Math.sin(a)); } return new THREE.ShapeGeometry(sh).toNonIndexed(); })();
+  const leafShape = (() => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(0.07, 0.12, 0, 0.26); sh.quadraticCurveTo(-0.07, 0.12, 0, 0); return new THREE.ShapeGeometry(sh, 6); })();
+  const coloured = (geometry, color, transform) => {
+    const g = geometry.clone().applyMatrix4(transform), c = new THREE.Color(color);
+    g.setAttribute('color', new THREE.Float32BufferAttribute(Array.from({ length: g.attributes.position.count }, () => [c.r, c.g, c.b]).flat(), 3));
+    return g;
+  };
+  const parts = [], leaves = [];
+  const radius = 0.78, tall = 0.62;
+  for (let i = 0; i < 230; i++) { // points on a dome above the urn
+    const a = random() * Math.PI * 2, h = Math.sqrt(random());
+    const r = radius * Math.sqrt(1 - h * h) * (0.85 + random() * 0.2), y = rim + 0.05 + tall * h;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r, color = palette[Math.floor(random() * palette.length)];
+    const out = new THREE.Vector3(x, (y - rim) * 1.2, z).normalize();
+    const face = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), out);
+    const s = 0.8 + random() * 0.5;
+    const transform = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), face, new THREE.Vector3(s, s, s));
+    parts.push(coloured(random() < 0.78 ? rose : lily, color, transform));
+  }
+  for (let i = 0; i < 9; i++) { // spires of small blooms, delphinium-like, rising out of the top
+    const a = (i / 9) * Math.PI * 2 + random(), r = 0.18 + random() * 0.3, color = random() < 0.5 ? '#7d8fd6' : '#f4f0f5';
+    for (let k = 0; k < 9; k++) {
+      const t = k / 8, y = rim + tall * 0.75 + t * 0.55, rr = r * (1 - t * 0.3), s = 0.45 * (1 - t * 0.5);
+      parts.push(coloured(rose, color, new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a) * rr, y, Math.sin(a) * rr), new THREE.Quaternion(), new THREE.Vector3(s, s, s))));
+    }
+  }
+  for (let i = 0; i < 70; i++) { // leaves around the edge and hanging over the rim
+    const a = random() * Math.PI * 2, h = random() * 0.5, r = radius * (0.95 - h * 0.3), y = rim + 0.02 + h * tall * 0.8;
+    const out = new THREE.Vector3(Math.cos(a), -0.2 + h, Math.sin(a)).normalize();
+    const face = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), out);
+    const s = 1.0 + random() * 0.8;
+    leaves.push(leafShape.clone().applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a) * r * 0.8, y, Math.sin(a) * r * 0.8), face, new THREE.Vector3(s, s, s))));
+  }
+  const fill = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.92, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, tall / radius, 1), m.foliage);
+  fill.position.y = rim + 0.02;
+  group.add(fill);
+  group.add(new THREE.Mesh(mergeGeometries(parts), m.blooms));
+  group.add(new THREE.Mesh(mergeGeometries(leaves), m.flowerLeaf));
+  return group;
+}
+
 // put every piece in its place; models appear as they finish loading
 export function decorate(list, envMap) {
   const jobs = [];
@@ -134,6 +188,7 @@ export function decorate(list, envMap) {
     group.add(holder);
     if (type === 'monstera' || type === 'bird' || type === 'snake') { holder.add(plant(type)); continue; }
     if (type === 'settee') { holder.add(settee()); continue; }
+    if (type === 'flowers') { holder.add(flowers()); continue; }
     let lift = 0;
     if (type === 'bust') { holder.add(pedestal(1.1)); lift = 1.1; }
     if (type === 'vase') { holder.add(pedestal(1.0)); lift = 1.0; }
