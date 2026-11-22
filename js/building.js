@@ -12,7 +12,7 @@
 //                         ┌─ENTRANCE─┐
 import * as THREE from 'three';
 import { Batch, matrix } from './batch.js';
-import { canvasTexture, oakTexture, OAK_TILE, wallpaperTexture, WALLPAPER_TILE, marbleTexture } from './textures.js';
+import { canvasTexture, parquetTexture, PARQUET_TILE, wallpaperTexture, WALLPAPER_TILE, marbleTexture } from './textures.js';
 import { buildStairs, ovalStepsHeight } from './stairs.js';
 import { H, T, BASE, PHOTO_Y, DOOR, ROOMS_PER_FLOOR, floorY, HALL_HALF, ENTRANCE_HALF, HALL_COLOR, WING_COLORS } from './constants.js';
 import { ceiling } from './ceilings.js';
@@ -87,7 +87,7 @@ const onWall = (frame, local) => frame.m.clone().multiply(matrix(local));
 
 const extrude = (shape, depth) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 20 });
 
-// floor and ceiling pieces with texture coordinates in metres, so the planks run on seamlessly
+// floor and ceiling pieces with texture coordinates in metres, so the parquet runs on seamlessly
 function flat(x0, x1, z0, z1, tile, up = true) {
   const g = new THREE.BufferGeometry();
   const p = up ? [x0, 0, z1, x1, 0, z1, x1, 0, z0, x0, 0, z0] : [x0, 0, z0, x1, 0, z0, x1, 0, z1, x0, 0, z1];
@@ -199,10 +199,11 @@ function roomSlots(space, frames, count) {
   return slots.slice(0, count);
 }
 
-// where the wall lights go in the halls: two on each wall, clear of the doorways (z on the east
-// and west walls, x on the north and south)
+// where the wall lights go: two on each wall of the halls, clear of the doorways (z on the east
+// and west walls, x on the north and south); in the entrance, two on the left and right walls
 function wallLights(space, side) {
   if (space.kind === 'hall') return side === 'E' || side === 'W' ? [-2.35, 2.35] : [-3.4, 3.4];
+  if (space.kind === 'entrance' && (side === 'E' || side === 'W')) return [14.2, 17.6];
   return [];
 }
 // put a fitting built in a wall's frame at a place along the wall and a height above the floor
@@ -219,11 +220,11 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   const edges = [];
 
   // materials
-  const oak = oakTexture(anisotropy);
+  const parquet = parquetTexture(anisotropy);
   const marble = marbleTexture(anisotropy);
   marble.repeat.set(1 / 1.5, 1 / 1.5);
   const M = {
-    floor: new THREE.MeshLambertMaterial({ map: oak }),
+    floor: new THREE.MeshPhongMaterial({ map: parquet, specular: '#3a2818', shininess: 60 }), // polished
     ceiling: new THREE.MeshLambertMaterial({ color: '#efe8db', emissive: '#6e6658' }),
     vault: new THREE.MeshLambertMaterial({ color: '#efe8db', emissive: '#6e6658', side: THREE.BackSide }),
     vaultRib: new THREE.MeshLambertMaterial({ color: '#e2d8c4', emissive: '#4a443a', side: THREE.BackSide }),
@@ -242,7 +243,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     glass: new THREE.MeshBasicMaterial({ color: '#f1e2c0' }),
     brass: new THREE.MeshLambertMaterial({ color: '#a8823a', emissive: '#2a1c06' }),
   };
-  oak.anisotropy = anisotropy;
+  parquet.anisotropy = anisotropy;
   const wallpapers = new Map();
   const wallpaper = (color, pattern) => {
     const key = color + pattern;
@@ -280,11 +281,12 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     const paper = room ? wallpaper(WING_COLORS[space.wing], space.order % 3) : wallpaper(HALL_COLOR, 2);
 
     // floor, and a ceiling: all glass in the halls and the entrance (the vault running towards the stairs), a moulded one in the rooms
-    batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, OAK_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
-    // a hall with another floor above it has a solid ceiling and a large chandelier; only the top
-    // floor's hall (and the entrance, with nothing above it) is roofed in glass
+    batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, PARQUET_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
+    // a hall with another floor above it has an arched plaster ceiling and a large chandelier; only
+    // the top floor's hall (and the entrance, with nothing above it) is roofed in glass
     const glassRoof = space.kind === 'entrance' || (space.kind === 'hall' && f === floors - 1);
-    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: glassRoof, roof: batch, alongZ: glassRoof ? true : undefined });
+    const plasterVault = space.kind === 'hall' && !glassRoof;
+    ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight: glassRoof, arched: plasterVault, roof: batch, alongZ: glassRoof || plasterVault ? true : undefined });
 
     if (space.kind === 'room') chandelier((geometry, material, local) => batch.add(geometry, material, matrix({ x: cx, y: y + height, z: cz }).multiply(local)), M);
     if (space.kind === 'hall' && !glassRoof) { // half as big again, on a short chain, high above the flowers
@@ -299,7 +301,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
       batch.add(extrude(wallShape(frame.length / 2 + ext, height, doors), T / 2), [paper, M.stone], frame.m, { kind: 'wall', floor: f });
 
       // cornice and skirting
-      batch.add(new THREE.BoxGeometry(frame.length, 0.28, 0.14), M.stone, onWall(frame, { y: height - 0.14, z: -0.07 }));
+      if (!plasterVault) batch.add(new THREE.BoxGeometry(frame.length, 0.28, 0.14), M.stone, onWall(frame, { y: height - 0.14, z: -0.07 }));
       const gaps = doors.filter(d => !d.bottom).map(d => [d.u - d.width / 2 - 0.2, d.u + d.width / 2 + 0.2]).sort((a, b) => a[0] - b[0]);
       let from = -frame.length / 2;
       for (const [a, b] of [...gaps, [frame.length / 2, frame.length / 2]]) {
@@ -309,7 +311,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
       const onThis = (geometry, material, local) => batch.add(geometry, material, onWall(frame, {}).multiply(local));
       // rooms: dark wood panelling below the photos
       if (space.kind === 'room') wainscot(onThis, frame.length, doors.map(d => [d.u - doorwayHalfWidth(d.width) - 0.08, d.u + doorwayHalfWidth(d.width) + 0.08]));
-      // the halls: brass wall lights, between the doorways
+      // the halls and the entrance: brass wall lights, between the doorways
       for (const at of wallLights(space, side)) onThisAt(onThis, sconce, M, frame.u(at), 2.6);
 
       for (const d of doors) {
@@ -433,7 +435,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     showFloors(list) { floorGroups.forEach((g, f) => { g.visible = list.includes(f); }); },
     updateRoofs(eyeY) { roofGroups.forEach((g, f) => { g.visible = f === floors - 1 || eyeY < floorY(f + 1); }); },
     dispose() {
-      for (const texture of [oak, marble]) texture.dispose();
+      for (const texture of [parquet, marble]) texture.dispose();
       for (const m of wallpapers.values()) { m.map.dispose(); m.dispose(); }
       for (const m of Object.values(M)) if (!m.userData.shared) m.dispose();
     },

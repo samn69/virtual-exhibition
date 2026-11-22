@@ -1,4 +1,4 @@
-// Surfaces drawn in code: the oak floor, the wallpapers, marble, and plant leaves.
+// Surfaces drawn in code: the parquet floor, the wallpapers, marble, and plant leaves.
 import * as THREE from 'three';
 
 // small seeded random generator, so the patterns look the same on every visit
@@ -22,66 +22,78 @@ export function canvasTexture(width, height, draw, { repeat = false, anisotropy 
   return texture;
 }
 
-// ── light oak strip floor, like the photo: whitewashed oak, narrow planks of varying length ──
-export const OAK_TILE = 2.16; // metres covered by one texture
-export function oakTexture(anisotropy) {
+// ── walnut parquet, like the photo: a diagonal grid of long honey-coloured bands, about a metre
+// apart, and each diamond between them filled with small dark blocks in a basket weave ──
+const CELL = 1.0;                                  // metres between the bands
+export const PARQUET_TILE = 3 * CELL * Math.SQRT2; // the pattern repeats every three diamonds
+export function parquetTexture(anisotropy) {
   return canvasTexture(2048, 2048, (g, size) => {
-    const random = seeded(31);
-    const rows = 24, rowH = size / rows; // planks about 9 cm wide
-    const px = size / OAK_TILE;           // pixels per metre
-    for (let row = 0; row < rows; row++) {
-      const y = row * rowH;
-      // plank lengths 40–95 cm, filling the row exactly so the texture repeats seamlessly
-      const lengths = [];
-      let total = 0;
-      while (total < size) { const l = (0.4 + random() * 0.55) * px; lengths.push(l); total += l; }
-      lengths[lengths.length - 1] -= total - size;
-      if (lengths[lengths.length - 1] < 0.3 * px) { const short = lengths.pop(); lengths[lengths.length - 1] += short; }
-      let x = random() * size;
-      for (const length of lengths) {
-        for (const shift of [0, -size]) drawPlank(g, x + shift, y, length, rowH, random, size);
-        x += length;
+    const c = size / PARQUET_TILE * CELL;          // a diamond's side in pixels
+    const band = c * 0.085, inner = c - band, half = inner / 2, n = 4, strip = half / n;
+    g.fillStyle = '#2a170c'; g.fillRect(0, 0, size, size);
+    g.save();
+    g.rotate(Math.PI / 4); // u runs down-right, v down-left
+    const mod3 = k => ((k % 3) + 3) % 3;
+    const reach = Math.ceil(size * Math.SQRT2 / c) + 1;
+    for (let i = -1; i <= reach; i++) for (let j = -reach; j <= reach; j++) {
+      // the same random choices every third diamond, so the texture tiles without a seam
+      const random = seeded(7 + mod3(i) * 31 + mod3(j) * 977);
+      const u = i * c, v = j * c;
+      // skip diamonds wholly off the canvas
+      const cx = (u + c / 2 - (v + c / 2)) / Math.SQRT2, cy = (u + c / 2 + v + c / 2) / Math.SQRT2;
+      if (cx < -c || cx > size + c || cy < -c || cy > size + c) continue;
+      // the bands: one long board along each edge, and a small square where they cross
+      drawBlock(g, u + band, v, inner, band, true, random, true);
+      drawBlock(g, u, v + band, band, inner, false, random, true);
+      drawBlock(g, u, v, band, band, true, random, true);
+      // the basket weave: four squares, each of four boards, turning a quarter each time
+      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) {
+        const su = u + band + a * half, sv = v + band + b * half, along = (a + b) % 2 === 0;
+        for (let k = 0; k < n; k++) {
+          if (along) drawBlock(g, su, sv + k * strip, half, strip, true, random);
+          else drawBlock(g, su + k * strip, sv, strip, half, false, random);
+        }
       }
     }
+    g.restore();
   }, { repeat: true, anisotropy });
 }
-function drawPlank(g, x, y, w, h, random, size) {
-  if (x > size || x + w < 0) return;
+// one board of polished walnut; along: the grain runs along u
+function drawBlock(g, x, y, w, h, along, random, honey = false) {
   g.save();
   g.beginPath(); g.rect(x, y, w, h); g.clip();
-  const light = 78 + random() * 6, sat = 18 + random() * 10, hue = 30 + random() * 6;
+  const hue = (honey ? 27 : 17) + random() * 6, sat = (honey ? 50 : 48) + random() * 10;
+  const light = (honey ? 31 : 21) + random() * (honey ? 5 : 8);
   g.fillStyle = `hsl(${hue},${sat}%,${light}%)`;
   g.fillRect(x, y, w, h);
-  // long grain lines
-  const lines = 18 + Math.floor(random() * 16);
+  // grain lines along the board
+  const length = along ? w : h, width = along ? h : w;
+  const lines = Math.round(width / 3) + Math.floor(random() * 6);
   for (let i = 0; i < lines; i++) {
-    const gy = y + random() * h, amp = random() * 2.5, freq = 0.004 + random() * 0.01, phase = random() * 6;
+    const across = random() * width, amp = random() * 2.5, freq = 0.01 + random() * 0.02, phase = random() * 6;
     g.beginPath();
-    for (let gx = x; gx <= x + w; gx += 12) g.lineTo(gx, gy + Math.sin(gx * freq + phase) * amp);
-    g.strokeStyle = `hsla(${hue - 4},${sat + 25}%,${light - 28 - random() * 14}%,${0.12 + random() * 0.25})`;
-    g.lineWidth = 0.6 + random() * 1.4;
+    for (let t = 0; t <= length + 8; t += 8) {
+      const p = across + Math.sin(t * freq + phase) * amp;
+      if (along) g.lineTo(x + t, y + p); else g.lineTo(x + p, y + t);
+    }
+    const dark = random() < 0.7;
+    g.strokeStyle = dark ? `hsla(${hue - 6},${sat + 10}%,${light - 10 - random() * 8}%,${0.25 + random() * 0.3})`
+                         : `hsla(${hue + 4},${sat}%,${light + 10 + random() * 8}%,${0.12 + random() * 0.2})`;
+    g.lineWidth = 0.6 + random() * 1.6;
     g.stroke();
   }
-  // cathedral arches on some planks
-  if (random() < 0.55) {
-    const cx = x + w * (0.25 + random() * 0.5), cy = y + h * (0.3 + random() * 0.4), n = 3 + Math.floor(random() * 4);
-    for (let i = 1; i <= n; i++) {
-      const rx = w * (0.08 + i * 0.06), ry = h * (0.12 + i * 0.07);
-      g.beginPath();
-      g.ellipse(cx, cy, rx, ry, 0, Math.PI * 0.55, Math.PI * 1.45, false);
-      g.strokeStyle = `hsla(${hue - 6},${sat + 30}%,${light - 32}%,${0.18 + random() * 0.2})`;
-      g.lineWidth = 0.8 + random() * 1.2;
-      g.stroke();
-    }
-  }
-  // pores
-  for (let i = 0; i < w * h / 900; i++) {
-    g.fillStyle = `hsla(${hue},40%,${light - 35}%,0.25)`;
-    g.fillRect(x + random() * w, y + random() * h, 2 + random() * 6, 0.8);
+  // the polish: a soft light streak across some boards
+  if (random() < 0.5) {
+    const gradient = along ? g.createLinearGradient(x, y, x + w, y) : g.createLinearGradient(x, y, x, y + h);
+    const at = 0.2 + random() * 0.6;
+    gradient.addColorStop(Math.max(0, at - 0.25), 'rgba(255,214,160,0)');
+    gradient.addColorStop(at, `rgba(255,214,160,${0.06 + random() * 0.08})`);
+    gradient.addColorStop(Math.min(1, at + 0.25), 'rgba(255,214,160,0)');
+    g.fillStyle = gradient; g.fillRect(x, y, w, h);
   }
   // joints
-  g.strokeStyle = 'rgba(95,75,55,0.45)'; g.lineWidth = 1.4;
-  g.strokeRect(x + 0.7, y + 0.7, w - 1.4, h - 1.4);
+  g.strokeStyle = 'rgba(20,10,4,0.75)'; g.lineWidth = 1.6;
+  g.strokeRect(x + 0.8, y + 0.8, w - 1.6, h - 1.6);
   g.restore();
 }
 
