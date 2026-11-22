@@ -1,0 +1,194 @@
+{
+  "title": "My Exhibition",
+  "subtitle": "A virtual photo gallery",
+  "rooms": [
+    {
+      "name": "Entrance Hall",
+      "photos": [
+        {
+          "title": "Photo 1",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.5
+        },
+        {
+          "title": "Photo 2",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.75
+        },
+        {
+          "title": "Photo 3",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.33
+        },
+        {
+          "title": "Photo 4",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1
+        }
+      ]
+    },
+    {
+      "name": "Room I · Landscapes",
+      "photos": [
+        {
+          "title": "Photo 5",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.8
+        },
+        {
+          "title": "Photo 6",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.5
+        },
+        {
+          "title": "Photo 7",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.67
+        },
+        {
+          "title": "Photo 8",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.78
+        },
+        {
+          "title": "Photo 9",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.25
+        },
+        {
+          "title": "Photo 10",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.75
+        },
+        {
+          "title": "Photo 11",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.5
+        },
+        {
+          "title": "Photo 12",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1
+        }
+      ]
+    },
+    {
+      "name": "Room II · Cities",
+      "photos": [
+        {
+          "title": "Photo 13",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.5
+        },
+        {
+          "title": "Photo 14",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.75
+        },
+        {
+          "title": "Photo 15",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.33
+        },
+        {
+          "title": "Photo 16",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1
+        },
+        {
+          "title": "Photo 17",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.8
+        },
+        {
+          "title": "Photo 18",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.5
+        },
+        {
+          "title": "Photo 19",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.67
+        },
+        {
+          "title": "Photo 20",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.78
+        }
+      ]
+    },
+    {
+      "name": "Room III · People",
+      "photos": [
+        {
+          "title": "Photo 21",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.25
+        },
+        {
+          "title": "Photo 22",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.75
+        },
+        {
+          "title": "Photo 23",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.5
+        },
+        {
+          "title": "Photo 24",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1
+        },
+        {
+          "title": "Photo 25",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.5
+        },
+        {
+          "title": "Photo 26",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 0.75
+        },
+        {
+          "title": "Photo 27",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1.33
+        },
+        {
+          "title": "Photo 28",
+          "date": "",
+          "caption": "A sample frame. Your photo will hang here.",
+          "aspect": 1
+        }
+      ]
+    }
+  ]
+}

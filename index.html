@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1512">
+  <title>Virtual Exhibition</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="scene" aria-label="Virtual gallery. Drag to look around, tap the floor to walk, tap a photo to open it."></canvas>
+
+  <header class="hud">
+    <div id="roomName" class="room-name" aria-live="polite"></div>
+    <div class="hud-actions">
+      <button id="roomsButton" type="button">Rooms</button>
+      <button id="photosButton" type="button">Your photos</button>
+    </div>
+  </header>
+
+  <div id="roomBanner" class="room-banner" aria-hidden="true"></div>
+  <div id="hint" class="hint"></div>
+  <div id="loading" class="loading" hidden>Loading photos…</div>
+  <div id="joystick" class="joystick" hidden aria-label="Walk: up and down to walk, left and right to turn"><div class="knob"></div></div>
+  <div id="error" class="error" role="alert" hidden></div>
+
+  <dialog id="roomsDialog">
+    <div class="dialog-head"><h2>Rooms</h2><button class="close" type="button" aria-label="Close">✕</button></div>
+    <div id="roomsList" class="rooms-list"></div>
+  </dialog>
+
+  <dialog id="photosDialog">
+    <div class="dialog-head"><h2>Try it with your photos</h2><button class="close" type="button" aria-label="Close">✕</button></div>
+    <p>See your own pictures on the walls. They stay on this device and aren't uploaded anywhere.</p>
+    <label class="pick">Choose photos<input id="pickPhotos" type="file" accept="image/*" multiple></label>
+    <p class="note">They hang 8 to a room, in the order they were taken.</p>
+    <div id="pickFolderRow">
+      <label class="pick secondary">Choose a folder<input id="pickFolder" type="file" webkitdirectory multiple></label>
+      <p class="note">Each folder inside it becomes a room, named after the folder.</p>
+    </div>
+    <p id="photosError" class="error-text" role="alert" hidden></p>
+    <button id="backToSample" class="link" type="button" hidden>Back to the sample exhibition</button>
+  </dialog>
+
+  <div id="viewer" class="viewer" hidden>
+    <img id="viewerImage" alt="">
+    <div class="viewer-text">
+      <div id="viewerTitle" class="viewer-title"></div>
+      <div id="viewerDate" class="viewer-date"></div>
+      <div id="viewerCaption" class="viewer-caption"></div>
+      <div id="viewerPlace" class="viewer-place"></div>
+    </div>
+    <button id="viewerPrev" class="viewer-nav prev" type="button" aria-label="Previous photo">‹</button>
+    <button id="viewerNext" class="viewer-nav next" type="button" aria-label="Next photo">›</button>
+    <button id="viewerClose" class="viewer-close" type="button" aria-label="Close">✕</button>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

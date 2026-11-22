@@ -1,0 +1,87 @@
+:root {
+  --gold: #d9bb72;
+  --ink: #f3ece0;
+  --panel: rgba(26, 21, 18, 0.82);
+  --serif: Georgia, "Times New Roman", serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1512; color: var(--ink); font-family: var(--serif); }
+#scene { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; cursor: grab; }
+#scene:active { cursor: grabbing; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+.hud {
+  position: fixed; inset: 0 0 auto 0; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 12px max(14px, env(safe-area-inset-left));
+  background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0)); pointer-events: none;
+}
+.room-name { font-size: 17px; letter-spacing: 0.04em; color: var(--gold); text-shadow: 0 1px 3px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-actions { display: flex; gap: 8px; pointer-events: auto; flex-shrink: 0; }
+.hud-actions button { background: var(--panel); border: 1px solid rgba(217,187,114,0.5); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+.hud-actions button:hover { border-color: var(--gold); }
+
+.room-banner {
+  position: fixed; top: 30%; left: 50%; transform: translateX(-50%); pointer-events: none; opacity: 0;
+  font-size: clamp(26px, 5vw, 44px); color: var(--gold); text-shadow: 0 2px 12px #000; text-align: center; white-space: nowrap;
+}
+.room-banner.show { animation: banner 2.6s ease forwards; }
+@keyframes banner { 0% { opacity: 0; } 15%, 65% { opacity: 1; } 100% { opacity: 0; } }
+
+.hint {
+  position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: max-content; max-width: calc(100vw - 32px); text-align: center; font-size: 14px; line-height: 1.4;
+  background: var(--panel); padding: 10px 16px; border-radius: 12px; pointer-events: none; transition: opacity 0.8s;
+}
+.hint.gone { opacity: 0; }
+.loading { position: fixed; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); font-size: 13px; background: var(--panel); padding: 6px 12px; border-radius: 999px; }
+.error { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); background: #5c1f1f; padding: 10px 16px; border-radius: 10px; font-size: 14px; }
+
+.joystick {
+  position: fixed; left: max(22px, env(safe-area-inset-left)); bottom: max(26px, env(safe-area-inset-bottom));
+  width: 116px; height: 116px; border-radius: 50%; touch-action: none;
+  background: rgba(26,21,18,0.45); border: 1px solid rgba(217,187,114,0.45);
+  display: grid; place-items: center;
+}
+.joystick .knob { width: 48px; height: 48px; border-radius: 50%; background: rgba(217,187,114,0.75); box-shadow: 0 2px 8px rgba(0,0,0,0.5); pointer-events: none; }
+.joystick[hidden] { display: none; }
+
+dialog {
+  border: 1px solid rgba(217,187,114,0.45); border-radius: 16px; background: #211b16; color: var(--ink);
+  width: min(420px, calc(100vw - 32px)); max-height: 80vh; padding: 18px 20px 20px;
+}
+dialog::backdrop { background: rgba(0,0,0,0.55); }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.dialog-head h2 { margin: 0; font-size: 20px; font-weight: normal; color: var(--gold); }
+.close { background: none; border: none; font-size: 18px; padding: 4px 8px; }
+dialog p { font-size: 15px; line-height: 1.45; margin: 8px 0; }
+.note { font-size: 13px !important; opacity: 0.75; margin-top: 4px !important; }
+.pick { display: block; text-align: center; margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--gold); color: #1d1712; cursor: pointer; font-size: 16px; }
+.pick.secondary { background: none; color: var(--gold); border: 1px solid var(--gold); }
+.pick input { display: none; }
+.link { background: none; border: none; color: var(--gold); text-decoration: underline; padding: 0; margin-top: 14px; }
+.error-text { color: #f0a0a0; }
+.rooms-list { display: grid; gap: 6px; }
+.rooms-list button {
+  display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; text-align: left;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px;
+}
+.rooms-list button:hover { border-color: rgba(217,187,114,0.6); }
+.rooms-list .num { color: var(--gold); }
+.rooms-list .count { font-size: 13px; opacity: 0.65; }
+
+.viewer { position: fixed; inset: 0; background: rgba(8,6,5,0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 56px 16px 20px; touch-action: pan-y; }
+.viewer[hidden] { display: none; }
+.viewer img { max-width: 100%; max-height: calc(100% - 110px); object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,0.7); user-select: none; -webkit-user-drag: none; }
+.viewer-text { text-align: center; max-width: 640px; }
+.viewer-title { font-size: 20px; color: var(--gold); }
+.viewer-date { font-style: italic; opacity: 0.8; margin-top: 2px; }
+.viewer-caption { margin-top: 6px; line-height: 1.45; }
+.viewer-place { font-size: 13px; opacity: 0.6; margin-top: 8px; }
+.viewer-nav, .viewer-close { position: absolute; background: var(--panel); border: 1px solid rgba(217,187,114,0.4); border-radius: 999px; }
+.viewer-nav { top: 50%; transform: translateY(-50%); width: 46px; height: 46px; font-size: 28px; line-height: 1; }
+.viewer-nav.prev { left: 12px; }
+.viewer-nav.next { right: 12px; }
+.viewer-close { top: max(12px, env(safe-area-inset-top)); right: 12px; width: 40px; height: 40px; }
+/* on phones the hint sits above the joystick */
+@media (pointer: coarse) { .hint { bottom: calc(max(26px, env(safe-area-inset-bottom)) + 132px); } }
