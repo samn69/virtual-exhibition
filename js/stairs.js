@@ -1,7 +1,7 @@
 // The staircases.
 // Entrance: five oval marble steps with a red carpet runner, rising to the central hall.
 // Stair hall: behind the central hall, a tall red hall with an imperial staircase: one wide
-// flight up to a landing with a statue, then two flights turning back to a gallery on the floor above.
+// flight up to a landing with a marble relief of Roma in a gold niche, then two flights turning back to a gallery on the floor above.
 // Visitors glide up or down along the stairs.
 import * as THREE from 'three';
 import { Batch, matrix } from './batch.js';
@@ -10,12 +10,70 @@ import { wallShape } from './shapes.js';
 import { doorway } from './doorways.js';
 import { nameplate } from './building.js';
 import { ceiling } from './ceilings.js';
+import { romaRelief } from './relief.js';
+import { canvasTexture, seeded } from './textures.js';
 
 const ZS = -9.6;          // the stair hall's south wall, behind the central hall
 const TREAD = 0.32;
 const GALLERY = 3.0;      // depth of the gallery in front of the doorway on upper floors
 const ZA = ZS - GALLERY;  // where the first flight starts
 const MARGIN = 0.45;
+
+// ── the niche on the stair landing ──
+// An arched recess lined with gold mosaic in a stone frame like the doorways, a marble plinth, and
+// the relief of Roma standing on it. Built in the wall's frame: x along the wall, y up from the
+// landing, -z out into the stair hall.
+const NICHE = { width: 2.0, spring: 2.9, plinth: 0.4 };
+NICHE.top = NICHE.spring + NICHE.width / 2 + 0.36 + 0.6; // the frame's keystone
+
+let mosaic = null;
+function goldMosaic() { // small gold glass tiles, each catching the light a little differently
+  if (mosaic) return mosaic;
+  mosaic = canvasTexture(512, 512, (g, w, h) => {
+    const random = seeded(17), n = 64, s = w / n;
+    g.fillStyle = '#3a2a10'; g.fillRect(0, 0, w, h); // the grout
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const l = 42 + random() * 26, hue = 40 + random() * 8;
+      g.fillStyle = `hsl(${hue}, ${62 + random() * 20}%, ${l}%)`;
+      g.fillRect(i * s + 0.8 + random(), j * s + 0.8 + random(), s - 1.8, s - 1.8);
+    }
+  }, { repeat: true, anisotropy: 4 });
+  mosaic.repeat.set(1 / 0.5, 1 / 0.5); // 64 tiles to half a metre
+  return mosaic;
+}
+
+function niche(group, M, at) {
+  const { width, spring, plinth } = NICHE, r = width / 2, deep = 0.45;
+  const batch = new Batch();
+  const add = (geometry, material, local) => batch.add(geometry, material, at.clone().multiply(local));
+  // the niche stands out from the wall: a stone casing round an arched recess, with the same
+  // frame as the doorways on its face
+  const arch = (radius, shape = new THREE.Shape()) => { shape.moveTo(-radius, 0); shape.lineTo(-radius, spring); shape.absarc(0, spring, radius, Math.PI, 0, true); shape.lineTo(radius, 0); return shape; };
+  const casing = arch(r + 0.36);
+  casing.lineTo(r, 0); casing.lineTo(r, spring); casing.absarc(0, spring, r, 0, Math.PI, false); casing.lineTo(-r, 0); casing.closePath();
+  add(new THREE.ExtrudeGeometry(casing, { depth: deep, bevelEnabled: false, curveSegments: 32 }), M.stone, matrix({ z: -deep }));
+  doorway((geometry, material, local) => add(geometry, material, matrix({ z: -deep }).multiply(local)), M, width, spring);
+  // the gold mosaic lining: the back, the sides, and a half-dome curving back from the arch
+  const gold = new THREE.MeshPhongMaterial({ map: goldMosaic(), emissive: '#3a2a0c', specular: '#ffe9a8', shininess: 70, side: THREE.DoubleSide });
+  const back = new THREE.Shape();
+  back.moveTo(-r, 0); back.lineTo(r, 0); back.lineTo(r, spring); back.absarc(0, spring, r, 0, Math.PI, false); back.closePath();
+  const flat = new THREE.ShapeGeometry(back, 32);
+  add(flat, gold, matrix({ z: -0.01, ry: Math.PI }));
+  const metres = (g, w, h) => { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w, uv.getY(i) * h); return g; }; // tiles stay square
+  for (const s of [-1, 1]) add(metres(new THREE.PlaneGeometry(deep, spring), deep, spring), gold, matrix({ x: s * r, y: spring / 2, z: -deep / 2, ry: Math.PI / 2 }));
+  add(metres(new THREE.SphereGeometry(r, 32, 12, 0, Math.PI, 0, Math.PI / 2), Math.PI * r, (Math.PI / 2) * (r + deep) / 2), gold, matrix({ y: spring, z: -deep, sz: deep / r }));
+  // the plinth: a moulded marble block standing out in front
+  for (const [w, h, d, y] of [[width + 0.2, plinth, 0.8, plinth / 2], [width + 0.3, 0.06, 0.86, plinth - 0.03], [width + 0.3, 0.1, 0.86, 0.05]]) {
+    add(new THREE.BoxGeometry(w, h, d), M.stone, matrix({ y, z: -d / 2 }));
+  }
+  batch.build(group);
+  // the relief, on the plinth against the mosaic; it comes in when its pictures have loaded
+  romaRelief().then(mesh => {
+    mesh.applyMatrix4(at.clone().multiply(matrix({ y: plinth, z: -0.03, ry: Math.PI })));
+    mesh.matrixAutoUpdate = false;
+    group.add(mesh);
+  }).catch(error => console.warn("Couldn't load the relief", error));
+}
 
 // ── oval entrance steps ──
 export const OVAL = { z: 9.6 };
@@ -154,7 +212,7 @@ function design(F) {
       return [[0, ZS - 0.7, 0], [0, ZA + 0.3, 0], [0, ZA, 0], [0, zB, half], [0, zB - 0.9, half], [4.7, zB - 0.9, half], [4.7, zB, half],
         [4.7, ZA, FLOOR_H], [4.6, ZA + 0.55, FLOOR_H], [3.0, ZA + 1.25, FLOOR_H], [1.0, ZA + 1.4, FLOOR_H], [0, ZA + 1.4, FLOOR_H]];
     },
-    statue: [0, z0 + 0.62], // against the back wall of the landing, clear of the glide
+    niche: [0, z0], // in the back wall of the landing, facing the first flight
   };
 }
 
@@ -176,7 +234,7 @@ export function buildStairs({ floors: F, root, M, raycastTargets, entranceGroup,
   wall(matrix({ x: -W, y: BASE, z: (ZS + zWall) / 2, ry: -Math.PI / 2 }), ZS - zWall);
   // the far wall, behind the landing: a large arched window with a smaller one each side
   const windows = F > 1 ? [{ u: 0, width: 2.8, spring: 4.2 }, { u: -3.75, width: 1.5, spring: 3.0 }, { u: 3.75, width: 1.5, spring: 3.0 }]
-    .map(w => ({ ...w, bottom: FLOOR_H / 2 + 2.35 })) : []; // the sill clears the statue on the landing
+    .map(w => ({ ...w, bottom: FLOOR_H / 2 + NICHE.top + 0.3 })) : []; // the sills clear the niche on the landing
   wall(matrix({ y: BASE, z: z0, ry: Math.PI }), 2 * W + 0.4, windows);
   for (const w of windows) {
     const at = matrix({ x: w.u, y: BASE + w.bottom, z: z0, ry: Math.PI });
@@ -213,7 +271,7 @@ export function buildStairs({ floors: F, root, M, raycastTargets, entranceGroup,
   for (let f = 0; f < F - 1; f++) d.storey(b, f);
   for (let f = 1; f < F; f++) d.gallery(b, f);
   b.batch.build(group, raycastTargets);
-  if (d.statue) decor.push({ group, type: 'horse', x: d.statue[0], y: floorY(0) + FLOOR_H / 2, z: d.statue[1], ry: 0 });
+  if (d.niche) niche(group, M, matrix({ x: d.niche[0], y: floorY(0) + FLOOR_H / 2, z: d.niche[1], ry: Math.PI }));
 
   // the glide: a smooth curve through the route, walked at an even pace
   const route = d.route();
