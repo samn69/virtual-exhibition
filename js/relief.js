@@ -15,8 +15,9 @@ async function pixels(url) {
   return { data: g.getImageData(0, 0, bitmap.width, bitmap.height).data, width: bitmap.width, height: bitmap.height };
 }
 
-// the figure stands on y = 0, centred on x = 0, its back on z = 0 and facing +z
-export async function romaRelief({ height = 2.85, depth = 0.24 } = {}) {
+// the figure stands on y = 0, centred on x = 0, its back on z = 0 and facing +z. It is kept
+// shallow: a deeper relief stretches the side facing you, and from the stairs her head looked shrunken
+export async function romaRelief({ height = 2.85, depth = 0.04 } = {}) {
   const [map, d] = await Promise.all([new THREE.TextureLoader().loadAsync('assets/relief/roma.png'), pixels('assets/relief/roma-depth.png')]);
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 4;
