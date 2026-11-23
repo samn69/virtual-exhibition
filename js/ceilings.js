@@ -1,6 +1,6 @@
-// Ceilings. The entrance and the top floor's hall are roofed in glass: an arched vault over the
-// whole space, on iron ribs. The sky shows through the glass. Halls with a floor above have a
-// plaster groin vault, and the rooms have a plain moulded ceiling.
+// Ceilings. The entrance, the top floor's hall and the stair hall are roofed in glass: a shallow
+// arched vault on a grid of white bars, like a museum court, with the sky showing through. Halls
+// with a floor above have a plaster groin vault, and the rooms have a plain moulded ceiling.
 import * as THREE from 'three';
 import { matrix } from './batch.js';
 
@@ -10,6 +10,52 @@ function under(x0, x1, z0, z1) {
   g.rotateX(Math.PI / 2);
   g.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
   return g;
+}
+
+// ── a museum court roof, like the Greek and Roman court of the Metropolitan Museum ──
+// A shallow arched vault of clear glass (the sky shows through) on a close grid of slim white bars, with heavier arches
+// every few panes, rising from a deep moulded cornice; the ends are plaster half-moons with a
+// round wreath. at() places things in vault coordinates (across, up, along) at the springing.
+function courtRoof(roof, M, at, span, length, pad) {
+  const r = span / 2, rise = Math.min(r * 0.5, 2.5), k = rise / r, along = length + 2 * pad;
+  const flat = { sy: k };
+  roof.add(new THREE.CylinderGeometry(r, r, along, 64, 1, true, -Math.PI / 2, Math.PI), M.laylight, at(0, 0, 0, { rx: -Math.PI / 2, sz: k }));
+  // the grid: bars across every ~0.8 m, a heavier arch every fourth, and bars along the vault
+  const ribs = Math.max(4, Math.round(length / 0.8));
+  for (let i = 1; i < ribs; i++) {
+    const heavy = i % 4 === 0;
+    roof.add(new THREE.TorusGeometry(r - (heavy ? 0.07 : 0.03), heavy ? 0.07 : 0.025, 6, 64, Math.PI), M.glazing, at(0, 0, -length / 2 + (length * i) / ribs, flat));
+  }
+  const bars = Math.max(10, Math.round((Math.PI * (r + rise) / 2) / 0.6)); // panes about 0.6 m wide
+  for (let i = 1; i < bars; i++) {
+    const a = (i / bars) * Math.PI;
+    const x = Math.cos(a) * (r - 0.03), y = Math.sin(a) * (r - 0.03) * k;
+    const slope = Math.atan2(Math.cos(a) * k, Math.sin(a)); // lie along the curve
+    roof.add(new THREE.BoxGeometry(0.05, 0.05, length), M.glazing, at(x, y, 0, { rz: slope }));
+  }
+  // the ends: plaster half-moons with a wreath, framed by a heavy arch
+  for (const s of [-1, 1]) {
+    const end = at(0, 0, s * (length / 2 - 0.02));
+    const local = (extra = {}) => end.clone().multiply(matrix(extra));
+    roof.add(new THREE.CircleGeometry(r, 48, 0, Math.PI), M.plaster, local(flat));
+    roof.add(new THREE.TorusGeometry(r - 0.1, 0.1, 8, 64, Math.PI), M.stone, local({ z: -s * 0.08, ...flat }));
+    const cy = rise * 0.45, wz = -s * 0.06;
+    roof.add(new THREE.TorusGeometry(0.42, 0.07, 10, 40), M.stone, local({ y: cy, z: wz }));
+    for (let i = 0; i < 18; i++) { // leaves round the wreath
+      const a = (i / 18) * Math.PI * 2;
+      roof.add(new THREE.SphereGeometry(0.07, 8, 6), M.stone, local({ x: Math.cos(a) * 0.42, y: cy + Math.sin(a) * 0.42, z: wz - s * 0.04, rz: a + 0.6, sx: 1.8, sy: 0.7, sz: 0.6 }));
+    }
+    roof.add(new THREE.CircleGeometry(0.34, 32), M.plaster, local({ y: cy, z: wz + s * 0.03, ry: s > 0 ? Math.PI : 0 }));
+  }
+  // a deep cornice along each long side where the vault springs: three projecting steps and a
+  // row of dentils
+  for (const s of [-1, 1]) {
+    for (const [w, h, dy] of [[0.6, 0.16, -0.08], [0.42, 0.14, -0.23], [0.28, 0.2, -0.4]]) {
+      roof.add(new THREE.BoxGeometry(w, h, along), M.stone, at(s * (r - w / 2 + 0.02), dy, 0));
+    }
+    const n = Math.round(length / 0.22);
+    for (let i = 0; i < n; i++) roof.add(new THREE.BoxGeometry(0.1, 0.1, 0.11), M.stone, at(s * (r - 0.3), -0.55, -length / 2 + (i + 0.5) * length / n));
+  }
 }
 
 // one bay of a groin vault, the crown at y = rise above the springing (y = 0), in four parts split
@@ -170,25 +216,6 @@ export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true, 
     return;
   }
 
-  // the whole ceiling is glass: one arched vault from wall to wall, the shape of the old skylight
-  // (as high as it was, so flatter), on iron ribs, with half-round glass ends over the end walls
-  const r = span / 2, rise = Math.min(r, 2.5), k = rise / r, along = length + 2 * pad;
-  const flat = { sy: k }; // squash the round shapes into the vault's curve
-  roof.add(new THREE.CylinderGeometry(r, r, along, 48, 1, true, -Math.PI / 2, Math.PI), M.laylight, at(0, 0, 0, { rx: -Math.PI / 2, sz: k }));
-  for (const s of [-1, 1]) roof.add(new THREE.CircleGeometry(r, 32, 0, Math.PI), M.laylight, at(0, 0, s * length / 2, flat));
-  // arched ribs across, and purlins along
-  const ribs = Math.max(2, Math.round(length / 1.5));
-  for (let i = 0; i <= ribs; i++) roof.add(new THREE.TorusGeometry(r - 0.04, 0.04, 6, 40, Math.PI), M.iron, at(0, 0, -length / 2 + (length * i) / ribs, flat));
-  const purlins = 8;
-  for (let i = 1; i < purlins; i++) {
-    const a = (i / purlins) * Math.PI;
-    roof.add(new THREE.BoxGeometry(0.06, 0.06, length), M.iron, at(Math.cos(a) * (r - 0.05), Math.sin(a) * (r - 0.05) * k, 0));
-  }
-  // the ends: iron bars in the half-round glass, like a fan
-  for (const s of [-1, 1]) for (let i = 1; i < 6; i++) {
-    const a = (i / 6) * Math.PI, x = Math.cos(a) * r / 2, y = Math.sin(a) * r * k / 2;
-    roof.add(new THREE.BoxGeometry(0.05, Math.hypot(x * 2, y * 2), 0.05), M.iron, at(x, y, s * (length / 2 - 0.03), { rz: Math.atan2(y, x) - Math.PI / 2 }));
-  }
-  // an iron sill along the top of each long wall, where the vault starts
-  for (const s of [-1, 1]) roof.add(new THREE.BoxGeometry(0.22, 0.12, along), M.iron, at(s * (r - 0.08), 0.03, 0));
+  // the whole ceiling is glass
+  courtRoof(roof, M, at, span, length, pad);
 }

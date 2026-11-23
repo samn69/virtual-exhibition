@@ -230,12 +230,12 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     dome: new THREE.MeshLambertMaterial({ color: '#f7eedc', emissive: '#8c7c5e', side: THREE.DoubleSide }), // lit from the hidden light round it
     cove: new THREE.MeshBasicMaterial({ color: '#ffe7b8' }),
     lunette: new THREE.MeshLambertMaterial({ color: '#ebe3d4', emissive: '#5a5448' }),
-    iron: new THREE.MeshLambertMaterial({ color: '#4a4640', emissive: '#1a1814' }),
     carpet: new THREE.MeshLambertMaterial({ color: '#8e1c22', emissive: '#1c0406' }),
     stone: new THREE.MeshLambertMaterial({ color: '#e9e1d0' }),
     marble: new THREE.MeshLambertMaterial({ map: marble }),
     skirting: new THREE.MeshLambertMaterial({ color: '#3a2c22' }),
     laylight: glass || new THREE.MeshBasicMaterial({ color: '#dfe8ee', side: THREE.DoubleSide }), // roof glass, showing the sky
+    glazing: new THREE.MeshLambertMaterial({ color: '#f1ede4', emissive: '#5a564e' }), // the white-painted bars of the court roofs
     lead: new THREE.MeshLambertMaterial({ color: '#8c867c', emissive: '#3a3630' }),
     wood: new THREE.MeshLambertMaterial({ color: '#3b2a1f' }),
     velvet: new THREE.MeshLambertMaterial({ color: '#6b1f24' }),
