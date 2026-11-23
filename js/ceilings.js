@@ -61,16 +61,17 @@ function courtRoof(roof, M, at, span, length, pad) {
 // one bay of a groin vault, the crown at y = rise above the springing (y = 0), in four parts split
 // along the diagonals so the groins stay sharp: the two side parts follow the arch across the bay
 // (half-length b), the two end parts the arch along it (half-span a). Faces look down.
-function groinBay(a, b, rise, n = 24, hole = 0) {
+function groinBay(a, b, rise, n = 24, hole = 0, height = null) {
   const parts = [];
   for (const [side, along] of [[1, false], [-1, false], [1, true], [-1, true]]) {
     const pos = [], idx = [];
     for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
-      const s = i / n, t = -1 + (2 * j) / n, h = rise * Math.sqrt(Math.max(0, 1 - (t * s) ** 2));
-      if (along) pos.push(t * s * a, h, side * s * b); else pos.push(side * s * a, h, t * s * b);
+      const s = i / n, t = -1 + (2 * j) / n;
+      const [x, z] = along ? [t * s * a, side * s * b] : [side * s * a, t * s * b];
+      pos.push(x, height ? height(x, z) : rise * Math.sqrt(Math.max(0, 1 - (t * s) ** 2)), z);
     }
     const inside = k => Math.hypot(pos[3 * k], pos[3 * k + 2]) < hole;
-    const tri = (u, v, w) => { if (!(inside(u) && inside(v) && inside(w))) idx.push(u, v, w); };
+    const tri = (u, v, w) => { if (!(inside(u) || inside(v) || inside(w))) idx.push(u, v, w); };
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       const p = i * (n + 1) + j, q = p + n + 1;
       tri(p, q, p + 1); tri(p + 1, q, q + 1);
@@ -93,19 +94,38 @@ function groinBay(a, b, rise, n = 24, hole = 0) {
 // a band of warm light hidden behind it, radial ribs and two rings dividing the dome into
 // panels, and a round medallion in the middle where the chandelier hangs
 export const DOME = { radius: 3, rise: 0.48 };
-function dome(batch, M, at, lip = 0.24) {
-  const R = DOME.radius, h = DOME.rise, n = 96;
+function dome(batch, M, at, vault) {
+  const R = DOME.radius, h = DOME.rise, n = 96, band = 0.55, proud = 0.12;
   const Rs = (R * R + h * h) / (2 * h), cy = h - Rs; // the sphere the dome is part of
   const local = (x, y, z, extra = {}) => at.clone().multiply(matrix({ x, y, z, ...extra }));
   const surface = r => cy + Math.sqrt(Rs * Rs - r * r); // the height of the dome r from the middle
   batch.add(new THREE.SphereGeometry(Rs, n, 24, 0, Math.PI * 2, 0, Math.asin(R / Rs)), M.dome, local(0, cy, 0));
-  // the ring: a drum from the dome down past the vault, a flat soffit, and mouldings on both edges
-  batch.add(new THREE.CylinderGeometry(R, R, lip, n, 1, true), M.plaster, local(0, -lip / 2, 0));
-  batch.add(new THREE.RingGeometry(R, R + 0.55, n, 1), M.plaster, local(0, -lip, 0, { rx: Math.PI / 2 }));
-  batch.add(new THREE.CylinderGeometry(R + 0.55, R + 0.55, lip, n, 1, true), M.plaster, local(0, -lip / 2, 0)); // its outside, up into the vault
-  batch.add(new THREE.TorusGeometry(R + 0.02, 0.06, 8, n), M.stone, local(0, -lip, 0, { rx: Math.PI / 2 }));
-  batch.add(new THREE.TorusGeometry(R + 0.55, 0.045, 8, n), M.stone, local(0, -lip + 0.02, 0, { rx: Math.PI / 2 }));
-  batch.add(new THREE.TorusGeometry(R + 0.3, 0.025, 6, n), M.stone, local(0, -lip - 0.01, 0, { rx: Math.PI / 2 }));
+  // the ring: a moulded band lying on the curved vault, standing a little proud of it, with a
+  // drum rising from its inner edge to the foot of the dome. It follows the vault all the way
+  // round, so it sits on the ceiling instead of hanging below it.
+  const on = (r, t, dy) => { const x = Math.cos(t) * r, z = Math.sin(t) * r; return [x, vault(x, z) + dy, z]; };
+  const sheet = point => { // a grid of points (around × across) into a surface
+    const rows = point.length, cols = point[0].length, pos = [], idx = [];
+    for (const row of point) for (const p of row) pos.push(...p);
+    for (let i = 0; i < rows - 1; i++) for (let j = 0; j < cols - 1; j++) {
+      const p = i * cols + j, q = p + cols;
+      idx.push(p, q, p + 1, p + 1, q, q + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array((pos.length / 3) * 2), 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  };
+  const around = Array.from({ length: n + 1 }, (_, i) => (i / n) * Math.PI * 2);
+  batch.add(sheet(around.map(t => [0, 0.25, 0.5, 0.75, 1].map(f => on(R + band * f, t, -proud)))), M.plaster, at); // the band's face
+  batch.add(sheet(around.map(t => [-proud, 0.02].map(dy => on(R + band, t, dy)))), M.plaster, at); // its outer edge, up to the vault
+  batch.add(sheet(around.map(t => { const [x, y, z] = on(R, t, -proud); return [[x, y, z], [x, 0, z]]; })), M.plaster, at); // the drum
+  const bead = (r, dy, radius) => {
+    const pts = around.slice(0, n).map(t => new THREE.Vector3(...on(r, t, dy)));
+    batch.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), n, radius, 8, true), M.stone, at);
+  };
+  bead(R + 0.02, -proud, 0.06); bead(R + band, -proud + 0.01, 0.045); bead(R + 0.3, -proud - 0.005, 0.025);
   // the hidden light: a glowing strip round the foot of the dome, just above the drum
   batch.add(new THREE.CylinderGeometry(R - 0.01, R - 0.01, 0.1, n, 1, true), M.cove, local(0, surface(R) - 0.06, 0));
   // coffers: 16 ribs from the ring to the medallion, and two rings across them
@@ -162,16 +182,20 @@ export function ceiling(batch, M, { x0, x1, z0, z1, y, height, skylight = true, 
     // ceiling height in the middle of each bay, where the chandeliers hang.
     const a = span / 2, bays = Math.max(1, Math.round(length / span)), b = length / bays / 2;
     const rise = Math.min(a, b, 3), springAt = -rise; // below the ceiling top
+    // the vault's height above the springing at (x, z) from the middle of a bay: the higher of the
+    // two crossing arches, except round the dome, where it levels out into a flat crown for the
+    // dome's ring to sit on, the corners sweeping up to it like pendentives
+    const flatTo = DOME.radius + 0.6, blendTo = Math.min(b, a) - 0.1;
+    const vaultHeight = (x, z) => {
+      const groin = rise * Math.max(Math.sqrt(Math.max(0, 1 - (x / a) ** 2)), Math.sqrt(Math.max(0, 1 - (z / b) ** 2)));
+      return THREE.MathUtils.lerp(rise, groin, THREE.MathUtils.smoothstep(Math.hypot(x, z), flatTo, blendTo));
+    };
     const centres = [];
     for (let i = 0; i < bays; i++) {
       const c = -length / 2 + b * (2 * i + 1);
       centres.push(c);
-      for (const g of groinBay(a, b, rise, 48, DOME.radius + 0.25)) batch.add(g, M.plaster, at(0, springAt, c));
-      // how far the vault has fallen below the crown at the dome's outer moulding, along the
-      // diagonal (where it falls most): the ring hangs down that far, so it meets the vault all round
-      const d = (DOME.radius + 0.55) / Math.SQRT2;
-      const drop = rise - rise * Math.max(Math.sqrt(1 - (d / a) ** 2), Math.sqrt(1 - (d / b) ** 2));
-      dome(batch, M, at(0, 0, c), drop + 0.06);
+      for (const g of groinBay(a, b, rise, 48, DOME.radius + 0.05, vaultHeight)) batch.add(g, M.plaster, at(0, springAt, c));
+      dome(batch, M, at(0, 0, c), (x, z) => vaultHeight(x, z) - rise);
     }
     const pier = 0.7, proud = 0.12, band = 0.12; // pilaster width and how far it stands out; arch band depth
     // arches: across the hall between the bays and against the end walls, and along the side walls

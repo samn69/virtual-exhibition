@@ -58,10 +58,13 @@ function niche(group, M, at) {
   const back = new THREE.Shape();
   back.moveTo(-r, 0); back.lineTo(r, 0); back.lineTo(r, spring); back.absarc(0, spring, r, 0, Math.PI, false); back.closePath();
   const flat = new THREE.ShapeGeometry(back, 32);
-  add(flat, gold, matrix({ z: -0.01, ry: Math.PI }));
+  // the lining sits a few centimetres inside the stone casing and in front of the wall: on the
+  // same surface as them it would flicker against them as you move
+  const inset = 0.03;
+  add(flat, gold, matrix({ z: -inset, ry: Math.PI }));
   const metres = (g, w, h) => { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w, uv.getY(i) * h); return g; }; // tiles stay square
-  for (const s of [-1, 1]) add(metres(new THREE.PlaneGeometry(deep, spring), deep, spring), gold, matrix({ x: s * r, y: spring / 2, z: -deep / 2, ry: Math.PI / 2 }));
-  add(metres(new THREE.SphereGeometry(r, 32, 12, 0, Math.PI, 0, Math.PI / 2), Math.PI * r, (Math.PI / 2) * (r + deep) / 2), gold, matrix({ y: spring, z: -deep, sz: deep / r }));
+  for (const s of [-1, 1]) add(metres(new THREE.PlaneGeometry(deep, spring), deep, spring), gold, matrix({ x: s * (r - inset), y: spring / 2, z: -deep / 2, ry: Math.PI / 2 }));
+  add(metres(new THREE.SphereGeometry(r - inset, 32, 12, 0, Math.PI, 0, Math.PI / 2), Math.PI * r, (Math.PI / 2) * (r + deep) / 2), gold, matrix({ y: spring, z: -deep, sz: (deep - inset) / (r - inset) }));
   // the plinth: a moulded marble block standing out in front
   for (const [w, h, d, y] of [[width + 0.2, plinth, 0.8, plinth / 2], [width + 0.3, 0.06, 0.86, plinth - 0.03], [width + 0.3, 0.1, 0.86, 0.05]]) {
     add(new THREE.BoxGeometry(w, h, d), M.stone, matrix({ y, z: -d / 2 }));
@@ -69,7 +72,7 @@ function niche(group, M, at) {
   batch.build(group);
   // the relief, on the plinth against the mosaic; it comes in when its pictures have loaded
   romaRelief().then(mesh => {
-    mesh.applyMatrix4(at.clone().multiply(matrix({ y: plinth, z: -0.03, ry: Math.PI })));
+    mesh.applyMatrix4(at.clone().multiply(matrix({ y: plinth, z: -0.07, ry: Math.PI })));
     mesh.matrixAutoUpdate = false;
     group.add(mesh);
   }).catch(error => console.warn("Couldn't load the relief", error));
