@@ -15,7 +15,7 @@ import { Batch, matrix } from './batch.js';
 import { canvasTexture, parquetTexture, PARQUET_TILE, wallpaperTexture, WALLPAPER_TILE, marbleTexture } from './textures.js';
 import { buildStairs, ovalStepsHeight } from './stairs.js';
 import { H, T, BASE, PHOTO_Y, DOOR, ROOMS_PER_FLOOR, floorY, HALL_HALF, ENTRANCE_HALF, HALL_COLOR, WING_COLORS } from './constants.js';
-import { ceiling } from './ceilings.js';
+import { ceiling, DOME } from './ceilings.js';
 import { wallShape } from './shapes.js';
 import { doorway, doorwayHalfWidth } from './doorways.js';
 import { frontDoors } from './frontdoors.js';
@@ -227,6 +227,8 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     floor: new THREE.MeshPhongMaterial({ map: parquet, specular: '#3a2818', shininess: 60 }), // polished
     ceiling: new THREE.MeshLambertMaterial({ color: '#efe8db', emissive: '#6e6658' }),
     plaster: new THREE.MeshLambertMaterial({ color: '#efe8db', emissive: '#6e6658', side: THREE.DoubleSide }),
+    dome: new THREE.MeshLambertMaterial({ color: '#f7eedc', emissive: '#8c7c5e', side: THREE.DoubleSide }), // lit from the hidden light round it
+    cove: new THREE.MeshBasicMaterial({ color: '#ffe7b8' }),
     lunette: new THREE.MeshLambertMaterial({ color: '#ebe3d4', emissive: '#5a5448' }),
     iron: new THREE.MeshLambertMaterial({ color: '#4a4640', emissive: '#1a1814' }),
     carpet: new THREE.MeshLambertMaterial({ color: '#8e1c22', emissive: '#1c0406' }),
@@ -281,7 +283,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
 
     // floor, and a ceiling: all glass in the halls and the entrance (the vault running towards the stairs), a moulded one in the rooms
     batch.add(flat(x0 - T / 2, x1 + T / 2, z0 - T / 2, z1 + T / 2, PARQUET_TILE), M.floor, matrix({ y }), { kind: 'floor', floor: f });
-    // a hall with another floor above it has a plaster groin vault and a large chandelier in each bay; only
+    // a hall with another floor above it has a plaster groin vault, a coffered dome at the top of each bay, and a large chandelier hanging from each dome; only
     // the top floor's hall (and the entrance, with nothing above it) is roofed in glass
     const glassRoof = space.kind === 'entrance' || (space.kind === 'hall' && f === floors - 1);
     const plasterVault = space.kind === 'hall' && !glassRoof;
@@ -289,7 +291,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
 
     if (space.kind === 'room') chandelier((geometry, material, local) => batch.add(geometry, material, matrix({ x: cx, y: y + height, z: cz }).multiply(local)), M);
     if (plasterVault) for (const c of bayCentres) { // half as big again, on a short chain, at the crown of each bay
-      chandelier((geometry, material, local) => batch.add(geometry, material, matrix({ x: c.x, y: c.y, z: c.z, sx: 1.6, sy: 1.6, sz: 1.6 }).multiply(local)), M, { chain: 0.8 });
+      chandelier((geometry, material, local) => batch.add(geometry, material, matrix({ x: c.x, y: c.y, z: c.z, sx: 1.6, sy: 1.6, sz: 1.6 }).multiply(local)), M, { chain: 0.8 + DOME.rise / 1.6 });
     }
     const frames = {};
     for (const side of ['N', 'S', 'E', 'W']) {
