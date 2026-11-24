@@ -16,6 +16,9 @@ const mockFiles = new Map(); // id → { blob, url }
 // the exhibition file: from the site's settings, or remembered on the owner's device
 export const manifestId = () => (mockDrive ? '' : GOOGLE.manifestId || localStorage.getItem(STORED_ID) || '');
 export const fileUrl = id => mockFiles.get(id)?.url || `${API}/files/${encodeURIComponent(id)}?alt=media&key=${GOOGLE.apiKey}`;
+// photos come from Google's image server instead (=s0 keeps the original size). The API above
+// blocks a network for a while after many downloads ("automated queries"); this one doesn't.
+export const photoUrl = id => mockFiles.get(id)?.url || `https://lh3.googleusercontent.com/d/${encodeURIComponent(id)}=s0`;
 
 export async function readPublicManifest(id) {
   const response = await fetch(fileUrl(id), { cache: 'no-store' });

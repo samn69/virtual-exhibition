@@ -15,10 +15,12 @@ const PLAQUE = { w: 0.42, h: 0.56 };
 
 // downloaded photos, kept for a while so a gallery rebuilt after an edit doesn't fetch them again
 const blobs = new Map();
-async function download(url) {
+async function download(url, backup) {
   if (blobs.has(url)) { const blob = blobs.get(url); blobs.delete(url); blobs.set(url, blob); return blob; }
-  const response = await fetch(url, { mode: 'cors' });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  let response = await fetch(url, { mode: 'cors' }).catch(() => null);
+  if (!response?.ok && backup) response = await fetch(backup, { mode: 'cors' });
+  if (!response?.ok) throw new Error(`HTTP ${response?.status}`);
+  if (!response.headers.get('content-type')?.startsWith('image/')) throw new Error('Not an image (Google may be blocking downloads)');
   const blob = await response.blob();
   blobs.set(url, blob);
   while (blobs.size > 48) blobs.delete(blobs.keys().next().value);
@@ -74,8 +76,8 @@ async function imageFromBlob(blob) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-async function photoCanvas(url, maxSide = MAX_SIDE) {
-  const image = await imageFromBlob(await download(url));
+async function photoCanvas(url, maxSide = MAX_SIDE, backup) {
+  const image = await imageFromBlob(await download(url, backup));
   const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
@@ -170,7 +172,7 @@ export class Artworks {
     item.state = 'loading';
     let canvas, failed = false;
     try {
-      canvas = item.photo.url ? await photoCanvas(item.photo.url) : placeholderCanvas(item.room * 20 + item.index, item.photo.aspect || [1.5, 0.75, 1.33, 1, 0.8][item.index % 5]);
+      canvas = item.photo.url ? await photoCanvas(item.photo.url, MAX_SIDE, item.photo.backupUrls?.[item.photo.url]) : placeholderCanvas(item.room * 20 + item.index, item.photo.aspect || [1.5, 0.75, 1.33, 1, 0.8][item.index % 5]);
     } catch (error) {
       console.warn('Could not load photo', item.photo.url, error);
       canvas = placeholderCanvas(item.index, 1.33, "Couldn't load this photo");
@@ -206,7 +208,7 @@ export class Artworks {
     if (!item.photo.fullUrl || item.failed || item.fullTexture || item.fullLoading) return;
     item.fullLoading = true;
     try {
-      const canvas = await photoCanvas(item.photo.fullUrl, FULL_SIDE);
+      const canvas = await photoCanvas(item.photo.fullUrl, FULL_SIDE, item.photo.backupUrls?.[item.photo.fullUrl]);
       if (this.disposed || !item.fullLoading || !item.group) return;
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;

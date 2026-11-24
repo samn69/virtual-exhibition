@@ -1,7 +1,7 @@
 // What's on show: the exhibition title, its rooms and the photos in each room.
 // It comes from the exhibition file in Google Drive, or from exhibition.json in this repo.
 import { ROOMS_PER_FLOOR } from './constants.js';
-import { fileUrl } from './drive.js';
+import { fileUrl, photoUrl } from './drive.js';
 
 export const MAX_PER_ROOM = 16;   // a room holds 1 to 8 photos in one row, up to 16 in two rows
 const MAX_FLOORS = 8;
@@ -19,8 +19,9 @@ function normalizePhoto(photo) {
   out.year ||= text(photo.date);            // older exhibition files
   out.description ||= text(photo.caption);
   // where to load it from
-  out.url = out.wall ? fileUrl(out.wall) : out.src;
-  out.fullUrl = out.full ? fileUrl(out.full) : out.url;
+  out.url = out.wall ? photoUrl(out.wall) : out.src;
+  out.fullUrl = out.full ? photoUrl(out.full) : out.url;
+  out.backupUrls = { [out.url]: out.wall && fileUrl(out.wall), [out.fullUrl]: out.full && fileUrl(out.full) }; // the API, if the image server fails
   return out;
 }
 
