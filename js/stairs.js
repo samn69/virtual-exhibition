@@ -1,5 +1,5 @@
 // The staircases.
-// Entrance: five oval marble steps with a red carpet runner, rising to the central hall.
+// Entrance: five oval marble steps with a navy carpet runner, rising to the central hall.
 // Stair hall: behind the central hall, a tall red hall with an imperial staircase: one wide
 // flight up to a landing with a marble relief of Roma in a gold niche, then two flights turning back to a gallery on the floor above.
 // Visitors glide up or down along the stairs.
@@ -103,7 +103,7 @@ function ovalSteps(group, M, raycastTargets) {
     shape.closePath();
     batch.add(new THREE.ExtrudeGeometry(shape, { depth: (k + 1) * rise, bevelEnabled: false, curveSegments: 48 }), M.marble, matrix({ y: (k + 1) * rise, z: OVAL.z, rx: Math.PI / 2 }), { kind: 'floor', floor: 0 });
   }
-  // a red carpet runner up the middle, with a brass rod at the foot of each step
+  // a navy carpet runner up the middle, with a brass rod at the foot of each step
   const half = 1.3, N = 16, xs = Array.from({ length: N + 1 }, (_, i) => -half + (2 * half * i) / N);
   const front = (k, x) => { const [rx, rz] = ovalRadii(k); return rz * Math.sqrt(Math.max(0, 1 - (x / rx) ** 2)); };
   for (let k = 0; k < n; k++) {
@@ -145,7 +145,7 @@ class Builder {
   slab(x0, x1, z0, z1, y, meta, thick = 0.45) { this.box((x0 + x1) / 2, y - thick / 2, (z0 + z1) / 2, x1 - x0, thick, z1 - z0, this.M.marble, meta); }
   // a straight flight; (x, z) is the middle of its first step's front edge
   flight({ x, z, dir: [dx, dz], width, steps, rise, y0, solid, meta }) {
-    const yaw = Math.atan2(dx, dz), cw = width * 0.72; // a red carpet runner up the middle
+    const yaw = Math.atan2(dx, dz), cw = width * 0.72; // a navy carpet runner up the middle
     const at = (along, y, extra = {}) => matrix({ x: x + dx * along, y, z: z + dz * along, ry: yaw, ...extra });
     for (let k = 0; k < steps; k++) {
       const along = (k + 0.5) * TREAD, top = y0 + (k + 1) * rise, h = solid ? top - y0 + 0.02 : rise + 0.14;

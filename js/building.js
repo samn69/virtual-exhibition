@@ -230,7 +230,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
     dome: new THREE.MeshLambertMaterial({ color: '#f7eedc', emissive: '#8c7c5e', side: THREE.DoubleSide }), // lit from the hidden light round it
     cove: new THREE.MeshBasicMaterial({ color: '#ffe7b8' }),
     lunette: new THREE.MeshLambertMaterial({ color: '#ebe3d4', emissive: '#5a5448' }),
-    carpet: new THREE.MeshLambertMaterial({ color: '#8e1c22', emissive: '#1c0406' }),
+    carpet: new THREE.MeshLambertMaterial({ color: '#1d2847', emissive: '#04060d' }), // deep navy, to stand out from the red walls
     stone: new THREE.MeshLambertMaterial({ color: '#e9e1d0' }),
     marble: new THREE.MeshLambertMaterial({ map: marble }),
     skirting: new THREE.MeshLambertMaterial({ color: '#3a2c22' }),
