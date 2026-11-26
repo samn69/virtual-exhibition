@@ -20,6 +20,7 @@ import { wallShape } from './shapes.js';
 import { doorway, doorwayHalfWidth } from './doorways.js';
 import { frontDoors } from './frontdoors.js';
 import { chandelier, sconce, wainscot } from './fittings.js';
+import { buildGuides } from './guides.js';
 export * from './constants.js';
 
 const MARGIN = 0.45;           // how close a visitor gets to a wall
@@ -380,6 +381,8 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   const ex = ENTRANCE_HALF - 1.0;
   placeEntrance('bust', -ex, 12.4, Math.PI / 2, 0.55); placeEntrance('bust', ex, 12.4, -Math.PI / 2, 0.55);
   for (const [type, x, z] of entrancePlants(ex, ENTRANCE.z1)) placeEntrance(type, x, z, 0, 0.75);
+  // the gallery guide, showing visitors where the rooms are
+  buildGuides({ exhibition, floors, floorGroups, entrance: ENTRANCE, M });
 
   for (let f = 0; f < floors; f++) {
     batches[f].build(floorGroups[f], raycastTargets);
