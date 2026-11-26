@@ -3,6 +3,7 @@
 // Every change is saved straight to the exhibition file in Google Drive.
 import { Drive, SignInNeeded, loadGoogleSignIn, mockDrive } from './drive.js';
 import { MAX_PER_ROOM, toManifest } from './exhibition.js';
+import { openVisitors } from './visits.js';
 
 const $ = id => document.getElementById(id);
 const EXIF_LIBRARY = 'https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.esm.mjs';
@@ -79,6 +80,7 @@ export class Editor {
     $('addPhotoInput').onchange = () => { const file = $('addPhotoInput').files[0]; $('addPhotoInput').value = ''; if (file) this.addPhoto(file); };
     $('renameButton').onclick = () => this.renameHere();
     $('editTitleButton').onclick = () => this.editTitle();
+    $('visitorsButton').onclick = () => openVisitors(this.drive.token);
     $('closeupEdit').onclick = () => this.editPhoto(this.app.closeup.item);
     $('closeupLeft').onclick = () => this.movePhoto(this.app.closeup.item, -1);
     $('closeupRight').onclick = () => this.movePhoto(this.app.closeup.item, 1);

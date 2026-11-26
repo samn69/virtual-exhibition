@@ -50,6 +50,7 @@
     <button id="addPhotoButton" type="button">＋ Add photo</button>
     <button id="renameButton" type="button">Rename room</button>
     <button id="editTitleButton" type="button">Exhibition title</button>
+    <button id="visitorsButton" type="button">Visitors</button>
     <input id="addPhotoInput" type="file" accept="image/*" hidden>
   </div>
 
@@ -134,6 +135,21 @@
     <p id="noticeText"></p>
     <p id="noticeCode" class="code" hidden></p>
     <div class="form-buttons"><button class="cancel primary" type="button">OK</button></div>
+  </dialog>
+
+  <!-- first visit: an optional name for the visitor log -->
+  <dialog id="welcomeDialog" class="form welcome">
+    <form id="welcomeForm" class="photo-form">
+      <h2>Welcome</h2>
+      <p>If you like, tell me your name so I know who came to see the photos. You can leave it empty.</p>
+      <label><span>Your name <span class="optional">(optional)</span></span><input id="welcomeName" maxlength="60" autocomplete="name" enterkeyhint="go"></label>
+      <div class="form-buttons"><button class="primary" type="submit">Enter the gallery</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="visitorsDialog" class="visitors">
+    <div class="dialog-head"><h2>Visitors</h2><button class="close" type="button" aria-label="Close">✕</button></div>
+    <div id="visitorsBody"></div>
   </dialog>
 
   <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busyText"></span></div>

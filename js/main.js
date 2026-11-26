@@ -10,6 +10,7 @@ import { manifestId, readPublicManifest } from './drive.js';
 import { Closeup } from './closeup.js';
 import { Editor } from './editor.js';
 import { Music } from './music.js';
+import { welcome } from './visits.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('scene');
@@ -265,6 +266,7 @@ let hintTimer = setTimeout(hideHint, 12000);
 function hideHint() { clearTimeout(hintTimer); $('hint').classList.add('gone'); }
 
 // ── start ──
+welcome(); // the optional name card on a first visit, then the visit is counted
 // the exhibition: from Google Drive once it's set up there, otherwise exhibition.json
 const params = new URLSearchParams(location.search);
 async function firstExhibition() {
