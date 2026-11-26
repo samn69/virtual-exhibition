@@ -97,10 +97,12 @@ export class Editor {
   }
   stop() { this.setEditing(false); }
   setEditing(on) {
+    const changed = this.editing !== on;
     this.editing = on;
     document.body.classList.toggle('editing', on);
     $('editButton').textContent = on ? 'Done' : 'Edit';
     this.update();
+    if (changed) this.app.editingChanged?.();
   }
   signInFailed(error) { $('signInError').textContent = error.message; $('signInError').hidden = false; $('signInButton').disabled = false; }
 

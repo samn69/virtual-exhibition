@@ -20,7 +20,7 @@ import { wallShape } from './shapes.js';
 import { doorway, doorwayHalfWidth } from './doorways.js';
 import { frontDoors } from './frontdoors.js';
 import { chandelier, sconce, wainscot } from './fittings.js';
-import { buildGuides } from './guides.js';
+import { closedDoorway } from './closeddoors.js';
 export * from './constants.js';
 
 const MARGIN = 0.45;           // how close a visitor gets to a wall
@@ -210,7 +210,35 @@ function wallLights(space, side) {
 // put a fitting built in a wall's frame at a place along the wall and a height above the floor
 const onThisAt = (add, build, M, u, height) => build((geometry, material, local) => add(geometry, material, matrix({ x: u, y: height }).multiply(local)), M);
 
-export function buildMuseum(exhibition, renderer, { glass } = {}) {
+// The rooms that are closed off: rooms without photos, except an empty room a visitor has to walk
+// through to reach one with photos (each such room keeps the shortest way to the hall open)
+function closedRooms(spaces, exhibition) {
+  const links = new Map();
+  for (const space of spaces) for (const d of space.doors) {
+    if (!d.to) continue;
+    for (const [a, b] of [[space.id, d.to], [d.to, space.id]]) { if (!links.has(a)) links.set(a, new Set()); links.get(a).add(b); }
+  }
+  const empty = id => id.startsWith('r') && !exhibition.rooms[Number(id.slice(1))]?.photos.length;
+  const closed = new Set(spaces.filter(s => s.kind === 'room' && empty(s.id)).map(s => s.id));
+  for (const space of spaces) {
+    if (space.kind !== 'room' || empty(space.id)) continue;
+    const from = new Map([[space.id, null]]), queue = [space.id];
+    let end = null;
+    while (queue.length && !end) {
+      const node = queue.shift();
+      for (const next of links.get(node) || []) {
+        if (from.has(next)) continue;
+        from.set(next, node);
+        if (!next.startsWith('r')) { end = next; break; }
+        queue.push(next);
+      }
+    }
+    for (let node = end; node; node = from.get(node)) closed.delete(node);
+  }
+  return closed;
+}
+
+export function buildMuseum(exhibition, renderer, { glass, openAll = false } = {}) {
   const floors = exhibition.floors;
   const anisotropy = renderer.capabilities.getMaxAnisotropy();
   const root = new THREE.Group();
@@ -267,6 +295,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   const spaces = [];
   for (let f = 0; f < floors; f++) spaces.push(...planFloor(f));
   spaces.push(ENTRANCE);
+  const closed = openAll ? new Set() : closedRooms(spaces, exhibition);
 
   for (let f = 0; f < floors; f++) { const group = new THREE.Group(); group.name = `floor ${f + 1}`; floorGroups.push(group); root.add(group); }
   const batches = floorGroups.map(() => new Batch());
@@ -324,6 +353,11 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
         const frameInfo = doorway(add, M, d.width, d.spring);
         if (space.kind === 'entrance') entranceDoorTop = d.bottom + frameInfo.top; // the exhibition title goes above
         else group.add(nameplate(signLabel(d.to), frameInfo, at));
+        // into (or out of) a room with no photos yet: roped off, on the open side
+        if (closed.has(d.to) || closed.has(space.id)) {
+          if (!closed.has(space.id)) closedDoorway(add, M, d.width);
+          continue; // and not walkable
+        }
         if (d.to) edges.push([space.id, d.to]);
         // the opening is walkable
         const [ix, iz] = frame.inward, along = d.width / 2 - 0.35;
@@ -381,8 +415,6 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   const ex = ENTRANCE_HALF - 1.0;
   placeEntrance('bust', -ex, 12.4, Math.PI / 2, 0.55); placeEntrance('bust', ex, 12.4, -Math.PI / 2, 0.55);
   for (const [type, x, z] of entrancePlants(ex, ENTRANCE.z1)) placeEntrance(type, x, z, 0, 0.75);
-  // the gallery guide, showing visitors where the rooms are
-  raycastTargets.push(...buildGuides({ exhibition, floors, floorGroups, entrance: ENTRANCE, M }));
 
   for (let f = 0; f < floors; f++) {
     batches[f].build(floorGroups[f], raycastTargets);
@@ -430,7 +462,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   };
 
   return {
-    root, floorGroups, stairGroup: stairs.group, raycastTargets, rooms, decor, floors, names,
+    root, floorGroups, stairGroup: stairs.group, raycastTargets, rooms, decor, floors, names, closed,
     walkable, heightAt, zoneAt, distancesFrom,
     onLanding: (f, x, z) => stairs.onLanding(f, x, z),
     glidePath: stairs.glidePath,

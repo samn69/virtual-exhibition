@@ -73,7 +73,8 @@ function show(newExhibition, { keepPlace = false } = {}) {
   closeup.close({ jump: true });
   if (museum) disposeWorld();
   exhibition = newExhibition;
-  museum = buildMuseum(exhibition, renderer, { glass: sky.material });
+  // rooms without photos are roped off, except while the owner is editing (to add photos there)
+  museum = buildMuseum(exhibition, renderer, { glass: sky.material, openAll: !!editor?.editing });
   scene.add(museum.root);
   decorate(museum.decor, reflections);
   hangPhotos();
@@ -122,7 +123,9 @@ function fillRoomsMenu() {
     museum.rooms.forEach((room, g) => {
       if (room.floor !== f) return;
       const n = exhibition.rooms[g].photos.length;
-      items.push(entry(g + 1, { name: room.name, count: n ? `${n} photo${n === 1 ? '' : 's'}` : 'empty' }, room.entrance));
+      const button = entry(g + 1, { name: room.name, count: n ? `${n} photo${n === 1 ? '' : 's'}` : museum.closed.has(`r${g}`) ? 'coming soon' : 'empty' }, room.entrance);
+      if (museum.closed.has(`r${g}`)) button.disabled = true; // its doors are closed
+      items.push(button);
     });
   }
   $('roomsList').replaceChildren(...items);
@@ -184,7 +187,6 @@ function tap(x, y) {
   if (!hit) return;
   const { kind, floor } = hit.object.userData;
   if (kind === 'photo') { closeup.show(hit.object.userData.item); hideHint(); }
-  else if (kind === 'tour') { hideHint(); tour.play(); } // the gallery guide board
   else if (kind === 'stairs') climb(floor === walker.floor ? 1 : -1);
   else if (kind === 'floor' && floor === walker.floor) {
     walker.walkTo(hit.point.x, hit.point.z);
@@ -267,6 +269,7 @@ $('tourPlay').addEventListener('click', hideHint);
 
 const editor = new Editor({
   exhibition: () => exhibition, zone: () => currentZone, floors: () => museum.floors,
+  editingChanged: () => { if (exhibition.rooms.some(room => !room.photos.length)) show(exhibition, { keepPlace: true }); }, // open or rope off the empty rooms
   normalize: normalizeExhibition, apply, closeup, findPhoto: (room, index) => artworks.find(room, index),
 });
 
