@@ -176,3 +176,32 @@ dialog.visitors h3 { font-size: 15px; font-weight: normal; color: var(--gold); m
 .names div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 10px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 14px; }
 .names .when { font-size: 12px; opacity: 0.6; white-space: nowrap; }
 @media (max-width: 480px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* the guided tour: a button at the bottom, and while it plays, its controls there */
+.tour-dock {
+  position: fixed; z-index: 7; left: 50%; transform: translateX(-50%); bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center; pointer-events: none;
+}
+.tour-dock > * { pointer-events: auto; }
+.tour-play { background: var(--gold); color: #1d1712; border: none; border-radius: 999px; padding: 11px 22px; font-size: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.5); white-space: nowrap; }
+.tour-play[hidden], .tour-controls[hidden] { display: none; }
+.tour-controls { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.tour-info { font-size: 14px; color: var(--gold); background: rgba(11,9,8,0.62); padding: 5px 14px; border-radius: 999px; max-width: calc(100vw - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
+.tour-buttons { display: flex; gap: 8px; align-items: center; background: var(--panel); border: 1px solid rgba(217,187,114,0.45); border-radius: 999px; padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
+.tour-buttons button { min-width: 44px; height: 44px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(217,187,114,0.35); font-size: 18px; line-height: 1; }
+.tour-buttons .tour-pause { background: var(--gold); color: #1d1712; border-color: var(--gold); }
+.tour-buttons .tour-speed { font-size: 14px; padding: 0 14px; }
+/* while the tour plays: no joystick or stair buttons (it walks for the visitor), and the photo's
+   title in full screen sits above the tour's controls */
+body.touring .joystick, body.touring .stairs, body.touring .hint { display: none !important; }
+body.tour-on .full-title { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 104px); }
+body.full-open:not(.tour-on) .tour-dock, body.editing .tour-dock { display: none; }
+/* on a computer the stair buttons and the first hint sit above the tour button */
+.stairs, .hint { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 64px); }
+/* on a phone the joystick is bottom left: the tour button sits above it until the tour plays */
+@media (pointer: coarse) {
+  .tour-dock { bottom: calc(max(26px, env(safe-area-inset-bottom)) + 132px); }
+  body.touring .tour-dock, body.closeup-open .tour-dock { bottom: max(22px, env(safe-area-inset-bottom)); }
+  .hint { bottom: calc(max(26px, env(safe-area-inset-bottom)) + 190px); }
+  .stairs { bottom: calc(max(26px, env(safe-area-inset-bottom)) + 20px); }
+}

@@ -28,6 +28,7 @@ export class Walker {
     this.pointers = new Map();
     this.museum = null;
     this.enabled = true;
+    this.hold = false; // the guided tour paused part-way up the stairs
 
     canvas.addEventListener('pointerdown', e => {
       if (!this.enabled) return;
@@ -84,7 +85,7 @@ export class Walker {
 
   place({ floor, x, z, yaw }) {
     this.floor = floor; this.x = x; this.z = z; this.yaw = yaw; this.pitch = 0;
-    this.target = null; this.gliding = null;
+    this.target = null; this.gliding = null; this.hold = false;
     this.y = this.museum.heightAt(floor, x, z) + EYE;
     this.apply();
   }
@@ -98,7 +99,7 @@ export class Walker {
   }
 
   update(dt) {
-    if (this.gliding) { this.updateGlide(dt); return; }
+    if (this.gliding) { if (!this.hold) this.updateGlide(dt); return; }
     if (!this.enabled) return;
     const k = this.keys;
     let forward = 0, strafe = 0, turn = 0;

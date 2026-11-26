@@ -11,6 +11,7 @@ import { Closeup } from './closeup.js';
 import { Editor } from './editor.js';
 import { Music } from './music.js';
 import { welcome } from './visits.js';
+import { Tour } from './tour.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('scene');
@@ -68,6 +69,7 @@ function disposeWorld() {
 // build the gallery for an exhibition; keepPlace leaves the visitor where they are
 function show(newExhibition, { keepPlace = false } = {}) {
   const place = keepPlace && museum ? { floor: walker.floor, x: walker.x, z: walker.z, yaw: walker.yaw, pitch: walker.pitch } : null;
+  tour.interrupt();
   closeup.close({ jump: true });
   if (museum) disposeWorld();
   exhibition = newExhibition;
@@ -88,6 +90,7 @@ function hangPhotos() {
 // after an edit: only the photos changed (quick), or names too (the whole building is rebuilt)
 function apply(newExhibition, { rebuild = 'photos' } = {}) {
   if (rebuild === 'all' || !museum) { show(newExhibition, { keepPlace: true }); return; }
+  tour.interrupt();
   closeup.close({ jump: true });
   artworks.dispose();
   exhibition = newExhibition;
@@ -181,6 +184,7 @@ function tap(x, y) {
   if (!hit) return;
   const { kind, floor } = hit.object.userData;
   if (kind === 'photo') { closeup.show(hit.object.userData.item); hideHint(); }
+  else if (kind === 'tour') { hideHint(); tour.play(); } // the gallery guide board
   else if (kind === 'stairs') climb(floor === walker.floor ? 1 : -1);
   else if (kind === 'floor' && floor === walker.floor) {
     walker.walkTo(hit.point.x, hit.point.z);
@@ -203,23 +207,29 @@ $('closeupClose').onclick = () => closeup.close();
 $('closeupLabel').onclick = () => closeup.toggleLabel();
 
 // ── the photo on its own, full screen (from a close look) ──
+let fullBlobUrl = null; // the copy the close look already downloaded, so it isn't fetched twice
 function openFull() {
   const item = closeup.item;
   if (!item) return;
   const image = $('fullImage');
   $('fullLoading').hidden = false;
   image.onload = image.onerror = () => { $('fullLoading').hidden = true; };
-  image.src = item.photo.fullUrl || item.canvas?.toDataURL('image/jpeg', 0.9) || '';
+  if (fullBlobUrl) URL.revokeObjectURL(fullBlobUrl);
+  fullBlobUrl = artworks.blobUrl(item.photo.fullUrl);
+  image.src = fullBlobUrl || item.photo.fullUrl || item.canvas?.toDataURL('image/jpeg', 0.9) || '';
   image.alt = item.photo.title || 'Photo';
   $('fullTitle').textContent = [item.photo.title || 'Untitled', item.photo.year].filter(Boolean).join(', ');
   $('fullView').hidden = false;
+  document.body.classList.add('full-open');
   closeup.blocked = true;
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
 }
 function closeFull() {
   if ($('fullView').hidden) return;
   $('fullView').hidden = true;
+  document.body.classList.remove('full-open');
   $('fullImage').removeAttribute('src');
+  if (fullBlobUrl) { URL.revokeObjectURL(fullBlobUrl); fullBlobUrl = null; }
   closeup.blocked = false;
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
@@ -247,6 +257,14 @@ $('fullView').addEventListener('pointerup', e => {
 });
 $('closeupPrev').onclick = () => closeup.step(-1);
 $('closeupNext').onclick = () => closeup.step(1);
+// ── the guided tour ──
+const tour = new Tour({
+  camera, walker, closeup, museum: () => museum, artworks: () => artworks, openFull, closeFull,
+  isFull: () => !$('fullView').hidden,
+  banner: text => { const banner = $('roomBanner'); banner.textContent = text; banner.classList.remove('show'); void banner.offsetWidth; banner.classList.add('show'); },
+});
+$('tourPlay').addEventListener('click', hideHint);
+
 const editor = new Editor({
   exhibition: () => exhibition, zone: () => currentZone, floors: () => museum.floors,
   normalize: normalizeExhibition, apply, closeup, findPhoto: (room, index) => artworks.find(room, index),
@@ -293,6 +311,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = clock.getDelta();
   walker.update(dt);
+  tour.update(dt);
   closeup.update(dt);
   sky.update(clock.elapsedTime);
   updateZone();
@@ -302,4 +321,4 @@ renderer.setAnimationLoop(() => {
 });
 
 // for testing: ?debug gives the console access to the walker and the photos
-if (new URLSearchParams(location.search).has('debug')) window.app = { scene, walker, get museum() { return museum; }, get artworks() { return artworks; }, show, apply, closeup, editor, climb, music };
+if (new URLSearchParams(location.search).has('debug')) window.app = { scene, walker, get museum() { return museum; }, get artworks() { return artworks; }, show, apply, closeup, editor, climb, music, tour };

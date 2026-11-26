@@ -14,7 +14,11 @@ const CONCURRENT = 3;
 const PLAQUE = { w: 0.42, h: 0.56 };
 
 // downloaded photos, kept for a while so a gallery rebuilt after an edit doesn't fetch them again
+// (and so full screen shows the copy a close look already fetched); full-size photos are big,
+// so the cache also has a size limit, lower on phones
 const blobs = new Map();
+const CACHE_BYTES = (isTouch ? 120 : 400) * 1024 * 1024;
+const cacheBytes = () => { let total = 0; for (const blob of blobs.values()) total += blob.size; return total; };
 async function download(url, backup) {
   if (blobs.has(url)) { const blob = blobs.get(url); blobs.delete(url); blobs.set(url, blob); return blob; }
   let response = await fetch(url, { mode: 'cors' }).catch(() => null);
@@ -23,7 +27,7 @@ async function download(url, backup) {
   if (!response.headers.get('content-type')?.startsWith('image/')) throw new Error('Not an image (Google may be blocking downloads)');
   const blob = await response.blob();
   blobs.set(url, blob);
-  while (blobs.size > 48) blobs.delete(blobs.keys().next().value);
+  while (blobs.size > 48 || (blobs.size > 2 && cacheBytes() > CACHE_BYTES)) blobs.delete(blobs.keys().next().value);
   return blob;
 }
 
@@ -202,6 +206,21 @@ export class Artworks {
     item.mesh.material.needsUpdate = true;
     item.state = 'idle';
   }
+
+  // the guided tour wants this photo on the wall now
+  want(item) {
+    if (item.state === 'idle') item.state = 'queued';
+    if (item.state !== 'queued') return;
+    this.queue = [item, ...this.queue.filter(other => other !== item)];
+    this.pump();
+  }
+  // fetch a photo's full-size copy ahead of time (the tour, one photo ahead)
+  prefetchFull(item) {
+    const url = item.photo.fullUrl;
+    if (url && !item.failed && !blobs.has(url)) download(url, item.photo.backupUrls?.[url]).catch(() => {});
+  }
+  // the downloaded copy of a photo, if there is one, as a link for an <img> (revoke it after)
+  blobUrl(url) { return url && blobs.has(url) ? URL.createObjectURL(blobs.get(url)) : null; }
 
   // the full-size copy, for a close look at one photo
   async loadFull(item) {

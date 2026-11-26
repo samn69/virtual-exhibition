@@ -382,7 +382,7 @@ export function buildMuseum(exhibition, renderer, { glass } = {}) {
   placeEntrance('bust', -ex, 12.4, Math.PI / 2, 0.55); placeEntrance('bust', ex, 12.4, -Math.PI / 2, 0.55);
   for (const [type, x, z] of entrancePlants(ex, ENTRANCE.z1)) placeEntrance(type, x, z, 0, 0.75);
   // the gallery guide, showing visitors where the rooms are
-  buildGuides({ exhibition, floors, floorGroups, entrance: ENTRANCE, M });
+  raycastTargets.push(...buildGuides({ exhibition, floors, floorGroups, entrance: ENTRANCE, M }));
 
   for (let f = 0; f < floors; f++) {
     batches[f].build(floorGroups[f], raycastTargets);

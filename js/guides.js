@@ -1,5 +1,6 @@
 // The gallery guide: a framed board in the entrance, beside the archway up to the hall, listing
 // every floor and its rooms so visitors know where the pictures are.
+// Tapping it starts the guided tour.
 // The text comes from the exhibition (room names, number of floors), so it stays right when
 // rooms are renamed.
 import * as THREE from 'three';
@@ -53,7 +54,7 @@ function directoryTexture(exhibition, floors, width, height) {
     y += 52; g.fillStyle = SOFT; fit(g, 'Up the steps to the Central Hall', max, 34, 'italic'); g.fillText('Up the steps to the Central Hall', w / 2, y);
     y += 30; g.strokeStyle = LINE; g.lineWidth = 2; g.beginPath(); g.moveTo(w / 2 - 120, y); g.lineTo(w / 2 + 120, y); g.stroke();
     // shrink everything below if there are many floors
-    const scale = Math.min(1.45, (h - y - 130) / (floors * 290));
+    const scale = Math.min(1.45, (h - y - 200) / (floors * 290));
     const names = range => exhibition.rooms.slice(range[0], range[1] + 1).map(r => shortName(r.name)).filter(Boolean);
     for (let f = 0; f < floors; f++) {
       y += 70 * scale;
@@ -74,7 +75,9 @@ function directoryTexture(exhibition, floors, width, height) {
       }
       y += 14 * scale;
     }
-    g.textAlign = 'center'; g.fillStyle = DIM; fit(g, 'Tap the floor to walk  ·  Tap a photo to see it closer', max, 28, 'italic');
+    g.textAlign = 'center'; g.fillStyle = INK; fit(g, '▶  Tap this board for a guided tour', max, 36);
+    g.fillText('▶  Tap this board for a guided tour', w / 2, h - 122);
+    g.fillStyle = DIM; fit(g, 'Tap the floor to walk  ·  Tap a photo to see it closer', max, 28, 'italic');
     g.fillText('Tap the floor to walk  ·  Tap a photo to see it closer', w / 2, h - 62);
   });
 }
@@ -87,11 +90,14 @@ function wallBoard(group, M, { x, y, z, ry, width, height, map }) {
   face.position.z = 0.065;
   board.add(face);
   group.add(board);
+  return face;
 }
 
 // next to the archway up to the Central Hall, the way every visitor goes
 export function buildGuides({ exhibition, floors, floorGroups, entrance, M }) {
   const width = 1.5, height = floors > 2 ? 2.15 : 2.0;
   const map = directoryTexture(exhibition, floors, width, height);
-  wallBoard(floorGroups[0], M, { x: -2.8, y: 2.45, z: entrance.z0 + 0.005, ry: 0, width, height, map });
+  const face = wallBoard(floorGroups[0], M, { x: -2.8, y: 2.45, z: entrance.z0 + 0.005, ry: 0, width, height, map });
+  face.userData = { kind: 'tour', floor: 0 }; // tapping the board starts the guided tour
+  return [face];
 }
