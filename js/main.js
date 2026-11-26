@@ -261,7 +261,7 @@ $('closeupPrev').onclick = () => closeup.step(-1);
 $('closeupNext').onclick = () => closeup.step(1);
 // ── the guided tour ──
 const tour = new Tour({
-  camera, walker, closeup, museum: () => museum, artworks: () => artworks, openFull, closeFull,
+  camera, walker, closeup, museum: () => museum, artworks: () => artworks, closeFull,
   isFull: () => !$('fullView').hidden,
   banner: text => { const banner = $('roomBanner'); banner.textContent = text; banner.classList.remove('show'); void banner.offsetWidth; banner.classList.add('show'); },
 });

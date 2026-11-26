@@ -1,6 +1,7 @@
 // The guided tour: ▶ walks the visitor round the gallery by itself, photo by photo, in visiting
 // order (room 1, 2, 3 … and up the stairs). At each photo it shows the photo on the wall, then
-// its label, then the photo full screen, a few seconds each, then steps back and walks on.
+// its label, then the photo again, a few seconds each, then steps back and walks on. (Full
+// screen is left to the visitor: pause, then Full screen.)
 // ⏸, or any touch on the gallery, stops it where it is. ▶ then carries on from that photo, or
 // from the start of the room the visitor has walked into since. A fresh visit starts from the
 // beginning (or from the room the visitor is standing in).
@@ -174,8 +175,8 @@ class Path {
 }
 
 export class Tour {
-  constructor({ camera, walker, closeup, museum, artworks, openFull, closeFull, isFull, banner }) {
-    Object.assign(this, { camera, walker, closeup, museum, artworks, openFull, closeFull, isFull, banner });
+  constructor({ camera, walker, closeup, museum, artworks, closeFull, isFull, banner }) {
+    Object.assign(this, { camera, walker, closeup, museum, artworks, closeFull, isFull, banner });
     this.playing = false;
     this.saved = null;     // { room, index } of the photo the tour is at, once it has started
     this.phase = 'leave';
@@ -223,6 +224,7 @@ export class Tour {
     const list = this.list();
     if (this.playing || !list.length) return;
     const w = this.walker, museum = this.museum();
+    if (this.isFull()) this.closeFull(); // full screen opened by hand during the pause
     const zone = museum.zoneAt(w.floor, w.x, w.z);
     const roomHere = zone.startsWith('r') ? Number(zone.slice(1)) : null;
     const firstIn = room => list.findIndex(i => i.room === room);
@@ -248,9 +250,8 @@ export class Tour {
   canContinue(item) {
     const c = this.closeup;
     switch (this.phase) {
-      case 'approach': case 'wall': return c.item === item && !c.reading && !this.isFull();
-      case 'label': return c.item === item && c.reading && !this.isFull();
-      case 'full': return c.item === item && this.isFull();
+      case 'approach': case 'wall': case 'again': return c.item === item && !c.reading;
+      case 'label': return c.item === item && c.reading;
       case 'move': return !c.open && !this.isFull() && (this.walker.gliding ? this.legs[0]?.kind === 'stairs' : this.legs[0]?.paused === this.where());
       default: return false;
     }
@@ -386,15 +387,17 @@ export class Tour {
       case 'wall':
         if ((this.timer -= dt) > 0) return;
         if (item.plaque && hasLabel(item.photo)) { c.toggleLabel(); this.phase = 'label'; this.timer = this.seconds + 0.9; return; }
-        this.startFull(item);
+        this.phase = 'again'; this.timer = this.seconds; // no label to read: just longer on the photo
+        this.prefetchNext();
         return;
-      case 'label':
+      case 'label': // then back from the label to the photo, for another look
         if ((this.timer -= dt) > 0) return;
-        this.startFull(item);
+        c.toggleLabel();
+        this.phase = 'again'; this.timer = this.seconds + 0.9;
+        this.prefetchNext();
         return;
-      case 'full':
+      case 'again':
         if ((this.timer -= dt) > 0) return;
-        this.closeFull();
         c.close();
         this.phase = 'back';
         return;
@@ -407,11 +410,8 @@ export class Tour {
     }
   }
 
-  startFull(item) {
-    this.openFull();
-    this.phase = 'full';
-    this.timer = this.seconds;
-    // fetch the next photo's full-size copy now, so it's sharp as soon as the tour gets there
+  // fetch the next photo's full-size copy now, so it's sharp as soon as the tour gets there
+  prefetchNext() {
     const next = this.list()[this.indexOf(this.saved) + 1];
     if (next) this.artworks().prefetchFull(next);
   }
