@@ -14,6 +14,8 @@ const STORED = 've-music'; // 'off' once the visitor has paused it
 
 const $ = id => document.getElementById(id);
 
+const AUTO_CLOSE_MS = 6000; // the music panel closes this long after the last touch
+
 export class Music {
   constructor() {
     this.audio = new Audio();
@@ -49,7 +51,24 @@ export class Music {
     $('musicNext').onclick = () => this.next();
     $('musicSpotify').onclick = () => this.useSpotify();
     $('musicBack').onclick = () => this.useClassical();
+    // the panel closes by itself a few seconds after the last touch, unless the visitor is using it
+    const panel = $('musicPanel');
+    this.closeTimer = null;
+    this.hovered = false;
+    panel.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { this.hovered = true; this.armClose(); } });
+    panel.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { this.hovered = false; this.armClose(); } });
+    for (const type of ['pointerdown', 'keydown', 'focusin', 'wheel']) panel.addEventListener(type, () => this.armClose(), { passive: true });
     this.update();
+  }
+
+  armClose() {
+    clearTimeout(this.closeTimer);
+    if (!$('musicPanel').classList.contains('open')) return;
+    this.closeTimer = setTimeout(() => {
+      // still in use: the mouse is over it, or the Spotify player has the focus (its taps don't reach this page)
+      if (this.hovered || document.activeElement === $('spotifyFrame')) this.armClose();
+      else this.togglePanel(false);
+    }, AUTO_CLOSE_MS);
   }
 
   get track() { return TRACKS[this.order[this.at]]; }
@@ -90,6 +109,7 @@ export class Music {
   togglePanel(open = !$('musicPanel').classList.contains('open')) {
     $('musicPanel').classList.toggle('open', open);
     $('musicPanel').setAttribute('aria-hidden', String(!open));
+    this.armClose();
   }
 
   update() {
