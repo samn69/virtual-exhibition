@@ -223,7 +223,8 @@ function closeFull() {
   closeup.blocked = false;
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
-function stepFull(direction) { closeup.step(direction); openFull(); }
+// next or previous from full screen: back to the wall and on to that photo there; Full screen opens it again
+function stepFull(direction) { closeFull(); closeup.step(direction); }
 $('closeupFull').onclick = openFull;
 $('fullClose').onclick = closeFull;
 $('fullPrev').onclick = () => stepFull(-1);
@@ -235,7 +236,7 @@ addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') stepFull(-1);
   else if (e.key === 'ArrowRight') stepFull(1);
 });
-let fullSwipe = null; // swipe for the next photo, tap to go back to the wall
+let fullSwipe = null; // swipe to go on to the next photo on the wall, tap to go back to the wall
 $('fullView').addEventListener('pointerdown', e => { if (e.target.closest('button')) return; fullSwipe = { x: e.clientX, y: e.clientY }; });
 $('fullView').addEventListener('pointerup', e => {
   if (!fullSwipe) return;
