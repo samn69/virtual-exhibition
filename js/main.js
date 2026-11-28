@@ -86,7 +86,7 @@ function show(newExhibition, { keepPlace = false } = {}) {
   fillRoomsMenu();
 }
 function hangPhotos() {
-  artworks = new Artworks(museum, exhibition, { onBusy: count => { $('loading').hidden = count === 0; } });
+  artworks = new Artworks(museum, exhibition, { envMap: reflections, onBusy: count => { $('loading').hidden = count === 0; } });
 }
 // after an edit: only the photos changed (quick), or names too (the whole building is rebuilt)
 function apply(newExhibition, { rebuild = 'photos' } = {}) {

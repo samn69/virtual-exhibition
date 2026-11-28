@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { canvasTexture, seeded } from './textures.js';
 import { PHOTO_Y } from './constants.js';
+import { frameGeometry, frameMaterials, FRAME_STYLE, MATERIAL_ORDER } from './frames.js';
 
 const SERIF = 'Georgia, "Times New Roman", serif';
 const isTouch = matchMedia('(pointer: coarse)').matches;
@@ -31,7 +32,6 @@ async function download(url, backup) {
   return blob;
 }
 
-const frameMaterial = new THREE.MeshLambertMaterial({ color: '#4a2d1b', emissive: '#120905' }); // dark brown wood
 const mountMaterial = new THREE.MeshLambertMaterial({ color: '#efe8d8' });
 const brassMaterial = new THREE.MeshLambertMaterial({ color: '#8d6f35', emissive: '#1d1406' });
 let glowTexture = null;
@@ -128,7 +128,8 @@ function plaqueTexture(number, photo) {
 }
 
 export class Artworks {
-  constructor(museum, exhibition, { onBusy } = {}) {
+  constructor(museum, exhibition, { onBusy, envMap } = {}) {
+    this.envMap = envMap;
     this.onBusy = onBusy || (() => {});
     this.items = [];
     this.queue = [];
@@ -258,9 +259,12 @@ export class Artworks {
 
     const light = new THREE.Mesh(new THREE.PlaneGeometry(w + 1.8, h + 1.8), new THREE.MeshBasicMaterial({ map: glow(), transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }));
     light.position.set(0, 0.2, 0.006);
-    const border = 0.12, matte = Math.min(0.1, Math.min(w, h) * 0.08);
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 2 * (matte + border), h + 2 * (matte + border), 0.07), frameMaterial);
-    frame.position.z = 0.035;
+    const matte = Math.min(0.1, Math.min(w, h) * 0.08);
+    // the moulded walnut frame (js/frames.js), as wide as the old flat one (12 cm)
+    const built = frameGeometry(FRAME_STYLE, w / 2 + matte, h / 2 + matte);
+    const border = built.width;
+    const materials = frameMaterials(this.envMap);
+    const frame = new THREE.Mesh(built.geometry, MATERIAL_ORDER.map(name => materials[name]));
     const mount = new THREE.Mesh(new THREE.PlaneGeometry(w + 2 * matte, h + 2 * matte), mountMaterial);
     mount.position.z = 0.072;
     const photo = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: '#d9d2c3', toneMapped: false }));
@@ -302,7 +306,7 @@ export class Artworks {
       item.group.removeFromParent();
       item.group.traverse(object => {
         object.geometry?.dispose();
-        if (object.material && object.material !== frameMaterial && object.material !== mountMaterial && object.material !== brassMaterial) {
+        if (object.material && !Array.isArray(object.material) && !object.material.userData.shared && object.material !== mountMaterial && object.material !== brassMaterial) {
           if (object.material.map && object.material.map !== glowTexture) object.material.map.dispose();
           object.material.dispose();
         }

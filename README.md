@@ -84,6 +84,7 @@ Plain files with no build step. [three.js](https://threejs.org) loads from a CDN
 - `js/stairs.js`: the carpeted entrance steps and the imperial staircase
 - `js/shapes.js`, `js/textures.js`, `js/batch.js`: wall outlines; oak, wallpaper and marble drawn in code; merging parts so phones draw them fast
 - `js/decor.js`: sculptures, plants, pedestals and the hall settee
+- `js/frames.js`: the picture frames, a dark walnut moulding with a thin gilt slip, swept round each photo and mitred at the corners
 - `js/artworks.js`: frames, plaques and picture lights. It loads photos only for the room you're in and the ones next to it, shrunk to fit a phone's memory
 - `js/controls.js`: walking, looking around, collisions, following steps up and down, and gliding up and down the stairs
 - `js/exhibition.js`: reads the exhibition file (from Drive, or `exhibition.json`)
